@@ -1,6 +1,6 @@
 // HOLO service worker: network-first (always fresh when online), cache fallback offline.
-const CACHE = 'holo-v1';
-const CORE = ['./', 'index.html', 'css/style.css?v=1', 'js/main.js?v=1', 'js/data.js', 'js/engine.js', 'js/run.js', 'js/rng.js', 'js/ui.js',
+const CACHE = 'holo-v2';
+const CORE = ['./', 'index.html', 'css/style.css?v=2', 'js/main.js?v=2', 'js/data.js', 'js/engine.js', 'js/run.js', 'js/rng.js', 'js/ui.js',
   'js/pack.js', 'js/battle.js', 'js/audio.js', 'js/fx.js', 'js/meta.js', 'js/icons.js', 'assets/fonts/lilita.woff2', 'assets/fonts/nunito.woff2',
   'assets/icon-192.png', 'assets/icon-512.png', 'manifest.webmanifest'];
 self.addEventListener('install', e => {

@@ -33,7 +33,20 @@ export function battleScreen(ctx, B, kind) {
   const arena = h('div', { class: 'arena' });
   const enemiesEl = h('div', { class: 'enemies' });
   const combo = h('div', { class: 'combo' });
-  arena.append(enemiesEl, combo);
+  // back-shelf stock silhouettes (seeded by round-independent randomness)
+  const stockRow = (top) => {
+    const d = h('div', { class: 'stock', style: { top } });
+    const cols = ['#3d2b63', '#2b3d63', '#4a2b4f', '#2b4a45', '#5a3a2a'];
+    let html = '';
+    for (let k = 0; k < 14; k++) {
+      if (k === 4 || k === 9) { html += '<span class="gap"></span>'; continue; }
+      const box = Math.random() < 0.3, w = box ? 22 + Math.random() * 14 : 13 + Math.random() * 5, ht = box ? 14 + Math.random() * 8 : 20 + Math.random() * 8;
+      html += `<i class="${box ? 'box' : ''}" style="width:${w.toFixed(0)}px;height:${ht.toFixed(0)}px;--c:${cols[k % cols.length]}"></i>`;
+    }
+    d.innerHTML = html; d.style.transform = 'translateY(-100%)';
+    return d;
+  };
+  arena.append(stockRow('22%'), stockRow('46%'), h('div', { class: 'lamp' }), enemiesEl, combo);
   const foeEls = [];
 
   function foeEl(e, i) {
@@ -61,6 +74,7 @@ export function battleScreen(ctx, B, kind) {
   function renderFoes() {
     enemiesEl.innerHTML = ''; foeEls.length = 0;
     B.enemies.forEach((e, i) => { const el = foeEl(e, i); if (e.dead) el.classList.add('dead'); foeEls.push(el); enemiesEl.append(el); });
+    enemiesEl.classList.toggle('n3', B.enemies.length >= 3);
     updateTargets(); renderIntents();
   }
   function updateTargets() {
@@ -99,8 +113,17 @@ export function battleScreen(ctx, B, kind) {
   // ---- me
   const me = h('div', { class: 'me', style: { '--hc': hero.color } });
   me.innerHTML = `<div class="port">${icon(hero.icon)}<span class="blockbadge"></span></div>
-    <div style="flex:1;min-width:0"><div class="bar"><b></b><i></i><span></span></div><div class="stats-row" style="justify-content:flex-start"></div></div>`;
-  const updMe = u => updUnit(me, u || B.player);
+    <div style="flex:1;min-width:0"><div class="who"><b>${hero.name}</b><span class="incoming"></span></div><div class="bar"><b></b><i></i><span></span></div><div class="stats-row" style="justify-content:flex-start"></div></div>`;
+  const updMe = u => { updUnit(me, u || B.player); updIncoming(); };
+  function updIncoming() {
+    const el = me.querySelector('.incoming'); if (!el) return;
+    if (playing || B.over) { el.innerHTML = ''; return; }
+    let tot = 0;
+    for (const e of alive(B)) { if (e.stunned) continue; const v = intentView(B, e); if (v.atk) tot += v.atk * (v.times || 1); }
+    const blk = B.player.block;
+    el.className = 'incoming ' + (tot === 0 ? 'safe' : tot > blk ? 'danger' : 'safe');
+    el.innerHTML = tot ? `${icon('crossed-swords')}Incoming ${tot}${blk ? ` · Block ${blk}` : ''}` : 'No attacks coming';
+  }
 
   // ---- row
   const offLabel = (where, i) => where === 'row' && B.disabled[i] ? (B.disabled[i] === 'shred' ? 'SHREDDED' : 'STOLEN') : null;
@@ -203,7 +226,7 @@ export function battleScreen(ctx, B, kind) {
       case 'fizzle': case 'skip': { const s = slotEl(e.slot); if (s) { const p = at(s); floatText(p.x, p.y - 40, e.text, '#a99fcc'); } return delay(200); }
       case 'stun': { const el = foeEls[e.i]; const p = at(el); floatText(p.x, p.y, 'Bribed!', '#ffd166'); sfx.coin(); return delay(250); }
       case 'cardsDone': return delay(220);
-      case 'roundEnd': renderIntents(); return;
+      case 'roundEnd': renderIntents(); enemiesEl.classList.toggle('n3', alive(B).length >= 3); return;
       default: return;
     }
   }
@@ -213,7 +236,7 @@ export function battleScreen(ctx, B, kind) {
     playing = true; arr.clear(); bottom.style.pointerEvents = 'none'; fightBtn.disabled = true;
     const evs = playRound(B);
     for (const e of evs) await handle(e);
-    playing = false; bottom.style.pointerEvents = ''; fightBtn.disabled = false;
+    playing = false; bottom.style.pointerEvents = ''; fightBtn.disabled = false; updIncoming();
     if (B.over) return end();
     if (auto) setTimeout(doRound, 350 / speed);
   }

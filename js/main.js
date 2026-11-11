@@ -267,23 +267,24 @@ function rewardScreen() {
   const scr = h('div', { class: 'screen' });
   const body = h('div', { class: 'scroll center', style: { flex: '1', padding: '10px 16px', gap: '12px', 'justify-content': 'safe center' } });
   body.append(h('div', { class: 'h1', style: { color: '#6dffb0', 'font-size': '40px' } }, rew.kind === 'boss' ? 'BOSS DEFEATED' : 'VICTORY'));
-  const lines = [`<b style="color:var(--gold)">+${rew.coins} coins</b>`];
-  if (rew.interest) lines.push(`<b style="color:var(--gold)">+${rew.interest} interest</b>`);
-  if (rew.healed) lines.push(`<b style="color:var(--heal)">+${rew.healed} HP</b> recovered`);
-  body.append(h('div', { class: 'sub', style: { 'font-size': '16px' }, html: lines.join(' · ') }));
+  const lines = h('div', { class: 'reward-lines' }, h('span', { class: 'pill coins', html: `${icon('two-coins')}+${rew.coins}` }));
+  if (rew.interest) lines.append(h('span', { class: 'pill coins', html: `${icon('coins-pile')}+${rew.interest} interest` }));
+  if (rew.healed) lines.append(h('span', { class: 'pill hp', html: `${icon('heart-beats')}+${rew.healed} HP` }));
+  body.append(lines);
   if (rew.shattered.length) body.append(h('div', { class: 'rulebar', html: `<b>Shattered:</b> ${rew.shattered.map(c => CARDS[c.id].name).join(', ')} — Cracked cards break after 3 fights.` }));
   for (const u of rew.unlocks || []) { const U = UNLOCKS.find(x => x.id === u); body.append(h('div', { class: 'unlock done', html: `${icon('star-swirl')}<span><b>UNLOCKED:</b> ${U.text}</span>` })); }
-  const packsEl = h('div', { style: { display: 'flex', gap: '16px', 'justify-content': 'center', 'flex-wrap': 'wrap', 'margin-top': '8px' } });
+  const packsEl = h('div', { style: { display: 'flex', gap: '8px', 'justify-content': 'center', 'flex-wrap': 'wrap' } });
   rew.packs.forEach((spec, k) => {
     const opened = p.opened.includes(k);
     const [pc, pc2] = packColors(spec);
-    const w = h('div', { class: 'ware' + (opened ? ' sold' : ''), style: { width: '150px' } },
+    const w = h('div', { class: 'loot' + (opened ? ' opened' : ''), style: { '--pc': pc, '--pc2': pc2 } },
+      h('div', { class: 'rays' }),
       h('div', { class: 'mini-pack', style: { '--pc': pc, '--pc2': pc2 }, html: icon(packIcon(spec)) }),
-      h('div', { class: 'wn' }, packName(spec)), h('div', { class: 'btn small' + (opened ? ' ghost' : ' gold') }, opened ? 'Opened' : 'Rip it open'));
+      h('div', { class: 'wn' }, packName(spec)), h('div', { class: 'cta' }, opened ? 'Opened' : 'Tap to rip it open'));
     if (!opened) w.addEventListener('click', () => { sfx.tap(); p.opened.push(k); const res = R.openPack(run, spec); openPackFlow(res, 'reward'); });
     packsEl.append(w);
   });
-  if (rew.packs.length) body.append(h('div', { class: 'sub' }, 'Your loot:'), packsEl);
+  if (rew.packs.length) body.append(packsEl);
   const allOpen = rew.packs.every((_, k) => p.opened.includes(k));
   const cont = h('button', { class: 'btn ' + (allOpen ? 'gold' : 'ghost'), style: { margin: '10px 16px calc(14px + env(safe-area-inset-bottom))' }, onclick: () => {
     if (!allOpen) { toast('Open your loot first!'); return; }
