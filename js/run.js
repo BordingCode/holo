@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER } from './data.js';
+import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js';
 import { makeRng, hashStr } from './rng.js';
 import { createBattle, ROW_SIZE } from './engine.js';
 
@@ -65,11 +65,46 @@ export function newRun({ hero = 'kip', heat = 0, seed, daily = false, unlockedSe
     act: 1, map: null, pos: null, floor: 0, sets: unlockedSets || ['base', 'ember', 'venom', 'iron'],
     stats: { fights: 0, elites: 0, bosses: 0, packs: 0, pulls: [], dmgBest: 0, coinsEarned: 0 },
     pending: null, over: null, startedAt: Date.now(),
+    tactics: [], relics: [], pity: 0,
   };
   H.start.forEach((id, k) => { run.row[k] = newCard(run, id); });
   run.map = genMap(run, 1);
+  run.tactics.push(randomTactic(run, 'C'));
   return run;
 }
+
+// ---- tactics & relics -----------------------------------------------------------
+export const PITY_MAX = 40;
+export const hasRelic = (run, id) => (run.relics || []).includes(id);
+export const tacticCap = run => hasRelic(run, 'tactical_vest') ? 5 : 3;
+export function randomTactic(run, rarity) {
+  const rng = rngOf(run);
+  const r = rarity || rng.weighted({ C: 55, U: 35, R: 10 });
+  return rng.pick(Object.keys(TACTICS).filter(k => TACTICS[k].r === r));
+}
+export function addTactic(run, id) {
+  if (run.tactics.length >= tacticCap(run)) return false;
+  run.tactics.push(id); return true;
+}
+export function relicChoices(run, n) {
+  const rng = rngOf(run);
+  const pool = Object.keys(RELICS).filter(r => !hasRelic(run, r) && !(RELICS[r].core && !run.sets.includes(RELICS[r].core)));
+  // at most one "core" per offer so the choice stays interesting
+  const out = [];
+  for (const id of rng.shuffle(pool)) {
+    if (out.length >= n) break;
+    if (RELICS[id].core && out.some(o => RELICS[o].core)) continue;
+    out.push(id);
+  }
+  return out;
+}
+export function takeRelic(run, id) {
+  run.relics.push(id);
+  if (id === 'seventh_sleeve') run.row.push(null);
+  if (id === 'thick_sleeves') { run.maxHp += 15; run.hp += 15; }
+  if (id === 'tactical_vest') { addTactic(run, randomTactic(run)); addTactic(run, randomTactic(run)); }
+}
+const priceMult = run => (HEROES[run.hero].perkId === 'fence' ? 0.8 : 1) * (hasRelic(run, 'coupon_book') ? 0.75 : 1);
 
 // ---- map --------------------------------------------------------------------
 export function genMap(run, act) {
@@ -96,6 +131,11 @@ export function genMap(run, act) {
   if (!all.some(n => n.type === 'shop')) rng.pick(rows[3]).type = 'shop';
   if (!all.some(n => n.type === 'grader')) rng.pick(rows[4]).type = 'grader';
   if (!all.some(n => n.type === 'elite')) rng.pick(rows[4]).type = 'elite';
+  // one treasure chest per act, mid-way
+  const tr = rng.pick(rows[3].filter(n => n.type !== 'shop') .length ? rows[3].filter(n => n.type !== 'shop') : rows[3]);
+  tr.type = 'treasure';
+  const lootSets = run.sets.filter(s => s !== 'base' && s !== 'void');
+  for (const n of rows.flat()) if (n.type === 'elite') n.loot = rng.pick(lootSets);
   // edges: each node links to its nearest 1–2 nodes in the next row; no orphans
   for (let r = 0; r < ROWS_PER_ACT - 1; r++) {
     const nxt = rows[r + 1];
@@ -133,7 +173,10 @@ export function pickEncounter(run, kind) {
 
 export function startBattle(run, kind) {
   const enemies = pickEncounter(run, kind);
-  run.pending = { type: 'battle', kind, enemies, rngAtStart: run.rngState };
+  const rng = rngOf(run);
+  const edChance = kind === 'boss' ? 0 : [0, 0.12, 0.22, 0.32][run.act] + (run.heat >= 3 ? 0.08 : 0);
+  const eds = enemies.map(() => rng.chance(edChance) ? rng.weighted({ foil: 35, holo: 20, gilded: 25, cracked: 20 }) : null);
+  run.pending = { type: 'battle', kind, enemies, eds, rngAtStart: run.rngState };
   return run.pending;
 }
 
@@ -141,7 +184,7 @@ export function makeBattle(run) {
   const p = run.pending;
   const r = makeRng(0); r.state = p.rngAtStart;
   return createBattle({ rng: r, coins: run.coins, perk: HEROES[run.hero].perkId, hp: run.hp, maxHp: run.maxHp,
-    row: run.row, enemies: p.enemies, mods: enemyMods(run, p.kind) });
+    row: run.row, enemies: p.enemies, eds: p.eds, mods: enemyMods(run, p.kind), relics: run.relics || [] });
 }
 
 // After a battle: sync HP/coins, crack cards, pay out. Returns reward description.
@@ -164,36 +207,47 @@ export function finishBattle(run, B) {
   if (hasPassive(run, 'interest')) interest = Math.min(8, Math.floor(run.coins / 5));
   run.coins += coins + interest; run.stats.coinsEarned += coins + interest;
   const packs = [];
+  let tactic = null, relics = null;
   if (kind === 'fight') packs.push({ type: 'booster' });
-  if (kind === 'elite') { run.stats.elites++; packs.push({ type: 'set', set: rng.pick(run.sets.filter(s => s !== 'base' && s !== 'void')) }); }
+  if (kind === 'elite') {
+    run.stats.elites++;
+    const nd = nodeById(run, run.pos);
+    packs.push({ type: 'set', set: (nd && nd.loot) || rng.pick(run.sets.filter(s => s !== 'base' && s !== 'void')) });
+    tactic = randomTactic(run, rng.chance(0.4) ? 'R' : 'U');
+    if (!addTactic(run, tactic)) { run.coins += 6; tactic = null; }
+  }
   let healed = 0;
+  if (hasRelic(run, 'bandolier')) { const h = Math.min(6, run.maxHp - run.hp); run.hp += h; healed += h; }
   if (kind === 'boss') {
     run.stats.bosses++;
     packs.push({ type: 'collector' });
-    healed = Math.round((run.maxHp - run.hp) * 0.6); run.hp += healed;
+    const h = Math.round((run.maxHp - run.hp) * 0.6); run.hp += h; healed += h;
+    relics = relicChoices(run, 3);
   }
-  return { coins, interest, packs, shattered, healed, kind };
+  return { coins, interest, packs, shattered, healed, kind, tactic, relics };
 }
 
 // ---- packs --------------------------------------------------------------------
 export function packPrice(run, type) {
-  let p = PACKS[type].price + (run.heat >= 6 ? 3 : 0);
-  if (HEROES[run.hero].perkId === 'fence') p = Math.round(p * 0.8);
-  return p;
+  return Math.round((PACKS[type].price + (run.heat >= 6 ? 3 : 0)) * priceMult(run));
 }
 
 export function openPack(run, spec) {
   const rng = rngOf(run);
   const P = PACKS[spec.type];
-  const clover = hasPassive(run, 'clover', true) ? 2 : 1;
+  const clover = (hasPassive(run, 'clover', true) ? 2 : 1) * (hasRelic(run, 'rainbow_ink') ? 3 : 1);
   let pool;
   if (P.setLock) pool = CARD_LIST.filter(c => c.set === P.setLock);
   else if (spec.set) pool = CARD_LIST.filter(c => c.set === spec.set);
   else pool = CARD_LIST.filter(c => run.sets.includes(c.set) && c.set !== 'void');
   const cards = [];
-  for (let k = 0; k < P.size; k++) {
+  const size = P.size + (hasRelic(run, 'fat_packs') ? 1 : 0);
+  const pityHit = (run.pity || 0) >= PITY_MAX;
+  for (let k = 0; k < size; k++) {
     let r = rng.weighted(P.odds);
-    if (P.guaranteeU && k === P.size - 1 && !cards.some(c => RARITY_RANK[CARDS[c.id].r] >= 1) && r === 'C') r = 'U';
+    if (P.guaranteeU && k === size - 1 && !cards.some(c => RARITY_RANK[CARDS[c.id].r] >= 1) && r === 'C') r = 'U';
+    if (hasRelic(run, 'lucky_pull') && k === size - 1 && r === 'C') r = 'U';
+    if (pityHit && k === size - 1) r = 'M';
     let options = pool.filter(c => c.r === r);
     let rr = RARITY_RANK[r];
     while (!options.length && rr > 0) { rr--; options = pool.filter(c => RARITY_RANK[c.r] === rr); }
@@ -204,12 +258,18 @@ export function openPack(run, spec) {
     const ed = rng.weighted(eo);
     cards.push(newCard(run, def.id, ed, 1, rng));
   }
+  // Mythic meter: every non-Mythic pull charges it; a Mythic (natural or forced) empties it
+  if (cards.some(c => CARDS[c.id].r === 'M')) run.pity = 0;
+  else run.pity = Math.min(PITY_MAX, (run.pity || 0) + cards.length * (hasRelic(run, 'golden_ticket') ? 2 : 1));
   // reveal order: rarest last (the classic pack "rare slot" drama)
   cards.sort((a, b) => score(a) - score(b));
   const best = cards[cards.length - 1];
   const tell = RARITY_RANK[CARDS[best.id].r] >= 3 || best.ed === 'holo' ? (rng.chance(0.65) ? 'glow' : null) : (rng.chance(0.06) ? 'glow' : null);
   run.stats.packs++;
-  return { type: spec.type, set: spec.set, cards, tell, mustKeep: !!P.mustKeep };
+  // bonus Tactic in some packs
+  let tactic = null;
+  if (spec.type !== 'cursed' && rng.chance(spec.type === 'collector' ? 0.6 : 0.3)) tactic = randomTactic(run, spec.type === 'collector' ? 'R' : null);
+  return { type: spec.type, set: spec.set, cards, tell: pityHit ? 'glow' : tell, mustKeep: !!P.mustKeep, tactic, pityHit };
 }
 
 export function score(c) { return RARITY_RANK[CARDS[c.id].r] * 10 + ED_RANK[c.ed] + (c.star - 1) * 4; }
@@ -232,7 +292,15 @@ export function makeShop(run) {
   if (run.sets.includes('void')) stock.push({ type: 'cursed' });
   if (run.act >= 2) stock.push({ type: 'collector' });
   else stock.push({ type: 'booster' });
-  return { stock: stock.map(s => ({ ...s, price: packPrice(run, s.type), sold: false })), mend: { price: 10, amt: 15, used: false }, polish: { price: 22, used: false } };
+  // showcase: one shiny Rare/Mythic in the display case — something to save up for
+  const scR = rng.chance(0.3 + run.act * 0.1) ? 'M' : 'R';
+  const scPool = CARD_LIST.filter(d => d.r === scR && run.sets.includes(d.set));
+  const scDef = rng.pick(scPool.length ? scPool : CARD_LIST.filter(d => d.r === 'R'));
+  const scEd = rng.weighted({ holo: 30, foil: 40, gilded: 20, normal: 10 });
+  const showcase = { card: newCard(run, scDef.id, scEd, 1, rng), price: Math.round(((scR === 'M' ? 52 : 30) + (scEd === 'holo' ? 10 : scEd === 'foil' ? 6 : 0)) * priceMult(run)), sold: false };
+  const tactics = [randomTactic(run), randomTactic(run)].map(id => ({ id, price: Math.round(TACTIC_PRICE[TACTICS[id].r] * priceMult(run)), sold: false }));
+  return { stock: stock.map(s => ({ ...s, price: packPrice(run, s.type), sold: false })), showcase, tactics,
+    mend: { price: Math.round(10 * priceMult(run)), amt: 15, used: false }, polish: { price: Math.round(22 * priceMult(run)), used: false } };
 }
 
 // ---- grader ----------------------------------------------------------------------

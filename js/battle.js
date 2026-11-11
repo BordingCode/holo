@@ -1,7 +1,7 @@
 // Battle screen: plan (rearrange, target) → FIGHT → animated event playback.
-import { CARDS, ENEMIES, HEROES } from './data.js';
-import { playRound, intentView, alive } from './engine.js';
-import { h, $, $$, icon, arranger, toast, pillCoins } from './ui.js';
+import { CARDS, ENEMIES, HEROES, TACTICS, ENEMY_EDITIONS, RARITY } from './data.js';
+import { playRound, intentView, alive, useTactic } from './engine.js';
+import { h, $, $$, icon, arranger, toast, pillCoins, modal } from './ui.js';
 import { sfx, music } from './audio.js';
 import { burst, centerOf, floatText, shake, banner } from './fx.js';
 import { meta, saveMeta } from './meta.js';
@@ -51,9 +51,9 @@ export function battleScreen(ctx, B, kind) {
 
   function foeEl(e, i) {
     const d = ENEMIES[e.id];
-    const el = h('div', { class: 'foe' + (d.boss ? ' boss' : '') + (d.small ? ' small' : ''), style: { '--fc': d.color } });
-    el.innerHTML = `<div class="body"><div class="aura"></div>${icon(d.icon)}<span class="blockbadge"></span></div>
-      <div class="nm">${e.name}</div><div class="bar"><b></b><i></i><span></span></div><div class="stats-row"></div><div class="intent"></div>`;
+    const el = h('div', { class: 'foe' + (d.boss ? ' boss' : '') + (d.small ? ' small' : '') + (e.ed ? ' fed-' + e.ed : ''), style: { '--fc': d.color } });
+    el.innerHTML = `<div class="body"><div class="aura"></div>${e.ed ? '<div class="fshine"></div>' : ''}${icon(d.icon)}<span class="blockbadge"></span></div>
+      <div class="nm">${e.ed ? `<span class="edtag">${ENEMY_EDITIONS[e.ed].name}</span>` : ''}${e.name}</div><div class="bar"><b></b><i></i><span></span></div><div class="stats-row"></div><div class="intent"></div>`;
     el.addEventListener('click', () => {
       if (e.dead) return;
       B.target = i; sfx.tap(); updateTargets(); showRule(e);
@@ -90,7 +90,8 @@ export function battleScreen(ctx, B, kind) {
       const v = intentView(B, e);
       const parts = [];
       if (v.special) parts.push(`<span class="spc">${icon(SPECIAL_ICON[v.special])}${SPECIAL_TEXT[v.special]}</span>`);
-      if (v.atk) parts.push(`<span class="atk">${icon('crossed-swords')}${v.approx ? '~' : ''}${v.atk}${v.times > 1 ? '×' + v.times : ''}</span>`);
+      if (v.atk) parts.push(`<span class="atk${v.miss ? ' miss' : ''}">${icon('crossed-swords')}${v.approx ? '~' : ''}${v.atk}${v.times > 1 ? '×' + v.times : ''}</span>`);
+      if (v.aimSlot != null && v.aim) parts.push(`<span class="aim ${v.aim}${v.miss ? ' miss' : ''}">${icon(v.aim === 'blind' ? 'all-seeing-eye' : 'target-arrows')}${v.miss ? 'MISS' : '#' + (v.aimSlot + 1)}</span>`);
       if (v.block) parts.push(`<span class="blk">${icon('templar-shield')}${v.block}</span>`);
       if (v.str) parts.push(`<span class="buf">${icon('biceps')}+${v.str}</span>`);
       for (const [k, ic] of [['burn', 'flame'], ['poison', 'poison'], ['vuln', 'broken-shield'], ['weak', 'broken-bone']]) if (v[k]) parts.push(`<span class="deb">${icon(ic)}${v[k]}</span>`);
@@ -104,11 +105,18 @@ export function battleScreen(ctx, B, kind) {
   const rulebar = h('div', { class: 'rulebar', style: { display: 'none' } });
   function showRule(e) {
     const d = e ? ENEMIES[e.id] : null;
-    const withRule = d && d.rule ? e : B.enemies.find(x => !x.dead && ENEMIES[x.id].rule);
-    if (!withRule) { rulebar.style.display = 'none'; return; }
+    const withRule = d && (d.rule || e.ed) ? e : B.enemies.find(x => !x.dead && (ENEMIES[x.id].rule || x.ed));
+    const aimer = alive(B).some(x => intentOf2(x).aim);
+    if (!withRule) {
+      if (aimer && !meta.seenAim) { rulebar.style.display = 'block'; rulebar.innerHTML = `${icon('target-arrows')}<b>Aimed attacks!</b> A target marks which card gets hit (and jammed next round). Move that card away — an empty slot makes it <b>MISS</b>.`; return; }
+      rulebar.style.display = 'none'; return;
+    }
     rulebar.style.display = 'block';
-    rulebar.innerHTML = `<b>${withRule.name}:</b> ${ENEMIES[withRule.id].rule}`;
+    const D = ENEMIES[withRule.id];
+    rulebar.innerHTML = `<b>${withRule.name}:</b> ${D.rule || ''}${withRule.ed ? ` <span class="edtag">${ENEMY_EDITIONS[withRule.ed].name}</span> ${ENEMY_EDITIONS[withRule.ed].text}` : ''}`;
   }
+
+  function intentOf2(x) { const v = intentView(B, x); return v; }
 
   // ---- me
   const me = h('div', { class: 'me', style: { '--hc': hero.color } });
@@ -134,6 +142,21 @@ export function battleScreen(ctx, B, kind) {
     actions: () => [],
     hint: 'Tap two cards to swap',
     benchHidden: () => !benchOpen,
+    disabled: () => B.disabled,
+    onChange: () => { ctx.save(); renderIntents(); updIncoming(); },
+    slotMarks: (where, i) => {
+      if (where !== 'row' || B.over) return null;
+      const m = [];
+      if (B.jammed && B.jammed.has(i)) m.push(`<span class="mk jam">JAMMED</span>`);
+      if (!playing) for (const e of alive(B)) {
+        if (e.stunned) continue;
+        const v = intentView(B, e);
+        if (v.aimSlot !== i || !v.aim) continue;
+        if (v.aim === 'blind') m.push(`<span class="mk blind" title="${e.name} will blind this slot">${icon('all-seeing-eye')}</span>`);
+        else m.push(`<span class="mk strike${v.miss ? ' miss' : ''}" title="${e.name} aims here">${icon('target-arrows')}</span>`);
+      }
+      return m;
+    },
   });
   const fightBtn = h('button', { class: 'btn', style: { flex: '1' } }, 'FIGHT');
   const autoBtn = h('button', { class: 'btn ghost small' }, 'Auto: off');
@@ -142,8 +165,58 @@ export function battleScreen(ctx, B, kind) {
   controls.prepend(benchToggle);
   benchToggle.addEventListener('click', () => { benchOpen = !benchOpen; benchToggle.classList.toggle('gold', benchOpen); arr.render(); sfx.tap(); });
 
+  const tacBar = h('div', { class: 'tacbar' });
+  function renderTactics() {
+    tacBar.innerHTML = '';
+    if (!run.tactics || !run.tactics.length) { tacBar.style.display = 'none'; return; }
+    tacBar.style.display = 'flex';
+    tacBar.append(h('span', { class: 'tl' }, 'Tactics'));
+    run.tactics.forEach((id, k) => {
+      const T = TACTICS[id];
+      const b = h('button', { class: 'ticket r-' + T.r, style: { '--k': RARITY[T.r].color }, html: `${icon(T.icon)}<span>${T.name}</span>` });
+      b.addEventListener('click', () => {
+        if (playing || B.over) return;
+        sfx.tap();
+        const md = modal([h('div', { class: 'tac-big', style: { '--k': RARITY[T.r].color }, html: icon(T.icon) }), h('div', { class: 'h2' }, T.name), h('p', { class: 'sub', style: { 'font-size': '15px' } }, T.text),
+          h('p', { class: 'sub', style: { 'font-size': '12px' } }, 'One use. Plays right now, before you press FIGHT.'),
+          h('div', { style: { display: 'flex', gap: '10px', 'margin-top': '10px' } },
+            h('button', { class: 'btn ghost', style: { flex: '1' }, onclick: () => md.close() }, 'Keep'),
+            h('button', { class: 'btn gold', style: { flex: '1' }, onclick: () => { md.close(); playTactic(k); } }, 'Use it'))]);
+      });
+      tacBar.append(b);
+    });
+  }
+  async function playTactic(k) {
+    if (playing || B.over) return;
+    const id = run.tactics[k];
+    run.tactics.splice(k, 1); ctx.save();
+    playing = true; fightBtn.disabled = true; renderTactics();
+    const evs = useTactic(B, id);
+    for (const e of evs) await handle(e);
+    playing = false; fightBtn.disabled = false;
+    arr.render(); renderIntents(); updIncoming(); renderTactics(); showRule(); showMult(B.pre && B.pre.mult);
+    if (B.over) return end();
+  }
+  const multBadge = h('div', { class: 'multbadge' });
+  arena.append(multBadge);
+  // shows the live damage multiplier during a round, or the tactic effects queued for the next round
+  const showMult = (m) => {
+    const parts = [];
+    if (m && m > 1) parts.push('×' + (+m.toFixed(2)) + ' DMG');
+    if (!playing && B.pre) {
+      if (B.pre.passes) parts.push('ENCORE: row ×2');
+      if (B.pre.echo) parts.push('ECHO: 1st card ×3');
+      if (B.pre.spotlight) parts.push('SPOTLIGHT');
+    }
+    if (!parts.length) { multBadge.classList.remove('on'); return; }
+    const txt = (!playing && parts.length ? 'NEXT ROUND · ' : '') + parts.join(' · ');
+    if (multBadge.textContent === txt && multBadge.classList.contains('on')) return;
+    multBadge.textContent = txt; multBadge.classList.remove('on'); void multBadge.offsetWidth; multBadge.classList.add('on');
+  };
+
   const bottom = h('div', {}, arr.detail, arr.el);
-  scr.append(top, arena, rulebar, me, bottom, controls);
+  scr.append(top, arena, rulebar, me, bottom, tacBar, controls);
+  renderTactics();
   renderFoes(); updMe(); showRule();
 
   // intro banner
@@ -225,18 +298,30 @@ export function battleScreen(ctx, B, kind) {
       case 'buff': { const s = slotEl(e.slot); if (s) { const p = at(s); floatText(p.x, p.y - 44, e.overclock != null ? 'OVERCLOCK →' : e.barbed ? 'Barbed!' : e.round ? `+${e.n} all hits` : `+${e.n} next`, '#ffb03a'); } sfx.buff(); return delay(120); }
       case 'fizzle': case 'skip': { const s = slotEl(e.slot); if (s) { const p = at(s); floatText(p.x, p.y - 40, e.text, '#a99fcc'); } return delay(200); }
       case 'stun': { const el = foeEls[e.i]; const p = at(el); floatText(p.x, p.y, 'Bribed!', '#ffd166'); sfx.coin(); return delay(250); }
-      case 'cardsDone': return delay(220);
-      case 'roundEnd': renderIntents(); enemiesEl.classList.toggle('n3', alive(B).length >= 3); return;
+      case 'cardsDone': if (e.dmg >= 60) { const p = at(arena); floatText(p.x, p.y + 40, e.dmg + ' this round!', '#ffd166', true); } return delay(220);
+      case 'roundEnd': renderIntents(); enemiesEl.classList.toggle('n3', alive(B).length >= 3); if (!B.pre || !B.pre.mult) multBadge.classList.remove('on'); arr.render(); return;
+      case 'mult': { showMult(e.m); const s = e.slot != null ? slotEl(e.slot) : null; const p = at(s || arena); floatText(p.x, p.y - 44, '×' + e.by, '#ffd166', true); sfx.buff(); return delay(160); }
+      case 'grow': { const s = e.slot != null ? slotEl(e.slot) : null; if (s) { const p = at(s); floatText(p.x, p.y - 30, `+${e.n} grows`, '#6dffb0'); } return delay(120); }
+      case 'miss': { const s = slotEl(e.slot); const p = at(s || arena); floatText(p.x, p.y - 30, 'MISS!', '#6dffb0', true); sfx.blocked(); const el = foeEls[e.i]; if (el) { el.classList.remove('lunge'); void el.offsetWidth; el.classList.add('lunge'); } return delay(350); }
+      case 'jam': {
+        const s = slotEl(e.slot);
+        if (s) { s.classList.remove('jolt'); void s.offsetWidth; s.classList.add('jolt'); const p = at(s); floatText(p.x, p.y - 30, e.kind === 'blind' ? 'BLINDED' : 'JAMMED', e.kind === 'blind' ? '#b07cff' : '#ff8a9b', true); }
+        sfx.shred(); return delay(260);
+      }
+      case 'tactic': { const p = at(arena); floatText(p.x, p.y, e.name + '!', '#4cc9f0', true); sfx.reveal('U'); burst(p.x, p.y, { count: 24, colors: ['#4cc9f0', '#fff'], speed: 5 }); return delay(420); }
+      case 'repair': arr.render(); sfx.heal(); toast('<b>Hot Glue</b> — jams cleared' + (e.slot != null ? ', a card is back in action!' : '.')); return delay(250);
+      case 'reshuffle': renderIntents(); sfx.flip(); return delay(250);
       default: return;
     }
   }
 
   async function doRound() {
     if (playing || B.over) return;
-    playing = true; arr.clear(); bottom.style.pointerEvents = 'none'; fightBtn.disabled = true;
+    playing = true; arr.clear(); bottom.style.pointerEvents = 'none'; tacBar.style.pointerEvents = 'none'; fightBtn.disabled = true;
+    if (!meta.seenAim && alive(B).some(x => intentView(B, x).aim)) { meta.seenAim = true; saveMeta(); }
     const evs = playRound(B);
     for (const e of evs) await handle(e);
-    playing = false; bottom.style.pointerEvents = ''; fightBtn.disabled = false; updIncoming();
+    playing = false; bottom.style.pointerEvents = ''; tacBar.style.pointerEvents = ''; fightBtn.disabled = false; updIncoming(); arr.render(); showRule(); showMult(B.pre && B.pre.mult);
     if (B.over) return end();
     if (auto) setTimeout(doRound, 350 / speed);
   }

@@ -20,9 +20,11 @@ const dealt = B => B.ev.filter(e => e.t === 'dmg' && e.side === 'e').reduce((s, 
 { const B = battle([card('whetstone'), card('cinder_heart'), card('jab')]); playRound(B); ok(dealt(B) === 7, 'buff skips passive to next firing card'); }
 { const B = battle([card('hollow'), card('blood_pact')]); playRound(B); ok(dealt(B) === 20, 'hollow silences right'); }
 { const B = battle([card('jab'), card('jab'), card('metronome')]); playRound(B); ok(dealt(B) === 12, 'metronome scales with cards fired'); }
-{ const B = battle([card('spring'), card('spring')]); playRound(B); ok(dealt(B) === 13, 'spring big only first'); }
+{ const B = battle([card('spring'), card('jab')]); playRound(B); ok(dealt(B) === 14, 'spring big when first'); }
+{ const B = battle([card('jab'), card('spring')]); playRound(B); ok(dealt(B) === 7, 'spring small when not first'); }
+{ const B = battle([card('spring'), card('spring')]); playRound(B); ok(dealt(B) === 16, 'clock-2 bonus: first card fires twice'); }
 { const B = battle([card('kindling')], ['tape_golem']); playRound(B); ok(B.enemies[0].burn === 3, 'burn ticks down by 1 after tick'); }
-{ const B = battle([card('kindling'), card('cinder_heart')]); playRound(B); ok(B.enemies[0].burn === 4, 'cinder heart keeps burn'); }
+{ const B = battle([card('kindling'), card('cinder_heart')]); playRound(B); ok(B.enemies[0].burn === 5, 'cinder heart keeps burn (+1 from ember-2)'); }
 { const B = battle([card('kindling')], ['tape_golem'], { perk: 'kindled' }); playRound(B); ok(B.enemies[0].burn === 4, 'kindled +1 burn'); }
 { // shredder shreds leftmost on its 2nd move
   const B = battle([card('jab'), card('jab'), card('guard')], ['shredder']);
@@ -58,6 +60,29 @@ const dealt = B => B.ev.filter(e => e.t === 'dmg' && e.side === 'e').reduce((s, 
   ok(rows.slice(0, -1).every(r => r.every(n => n.next.length)), 'all nodes lead on');
   ok(rows.slice(1).every((r, i) => r.every(n => rows[i].some(m => m.next.includes(n.id)))), 'no orphan nodes');
 }
+
+// ---- expansion mechanics ----
+import { useTactic, setCounts } from '../js/engine.js';
+{ const B = battle([card('amplifier'), card('jab')]); playRound(B); ok(dealt(B) === 6, 'amplifier ×1.5'); }
+{ const B = battle([card('amplifier'), card('amplifier'), card('jab')]); playRound(B); ok(dealt(B) === 9, 'amps stack multiplicatively (2.25)'); }
+{ const B = battle([card('jab'), card('jab'), card('jab'), card('finale')]); playRound(B); ok(dealt(B) === 12 + 9, 'finale 3×combo'); }
+{ const t = card('trophy'); const B = battle([t], ['paper_plane']); autoFight(B, 10); ok(t.grow === 2, 'trophy grows on kill, persists on instance'); }
+{ const sb = card('snowball'); const B = battle([sb]); playRound(B); playRound(B); ok(sb.grow === 2, 'snowball grows each fire'); }
+{ const B = battle([card('kindling'), card('ember_fang'), card('flare'), card('firebreath')]); const n = setCounts(B.row); ok(n.ember === 4, 'set count'); playRound(B);
+  const burnTicks = B.ev.filter(e => e.t === 'dmg' && e.kind === 'burn').length; ok(burnTicks === 2, 'ember-4: burn ticks twice'); }
+{ // strike on an empty slot misses
+  const B = battle([card('jab')], ['paper_plane']); B.enemies[0].moveIdx = 1; B.enemies[0].aim = 3; // aim at empty slot 4
+  playRound(B); ok(B.ev.some(e => e.t === 'miss'), 'strike at empty slot misses'); ok(B.player.hp === 50, 'missed strike deals no damage'); }
+{ // strike on occupied slot jams it next round
+  const B = battle([card('guard'), card('jab')], ['tape_golem']); B.enemies[0].moveIdx = 1; B.enemies[0].aim = 1;
+  playRound(B); ok(B.jammed.has(1), 'strike jams the slot'); playRound(B); ok(B.ev.some(e => e.t === 'skip' && e.slot === 1), 'jammed slot skips'); }
+{ const B = battle([card('jab')]); useTactic(B, 'encore'); playRound(B); ok(dealt(B) === 8, 'encore: row fires twice'); }
+{ const B = battle([card('jab')]); useTactic(B, 'overcharge'); playRound(B); ok(dealt(B) === 6, 'overcharge ×1.5'); }
+{ const B = battle([card('jab'), card('jab')]); useTactic(B, 'spotlight'); playRound(B); ok(dealt(B) === 16, 'spotlight triples first damaging card only'); }
+{ const B = battle([card('blood_pact', 'normal', 3)], ['paper_plane', 'paper_plane'], { relics: ['overflow'] }); playRound(B); ok(B.enemies.every(e => e.dead), 'overflow spills overkill'); }
+{ const B = createBattle({ rng: makeRng(1), coins: 0, hp: 50, maxHp: 50, row: [card('jab'), null, null, null, null, null], enemies: ['tape_golem'], eds: ['foil'] }); ok(B.enemies[0].maxHp === 53, 'foil enemy +40% hp'); }
+{ const B = battle([card('jab')], ['tape_golem'], { relics: ['opening_salvo'] }); playRound(B); ok(dealt(B) === 8, 'opening salvo round 1'); }
+
 function window_r(x) { return globalThis.__C[x.id].r; }
 
 console.log(`${pass} passed, ${fail} failed`);

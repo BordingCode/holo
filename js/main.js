@@ -1,5 +1,5 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES } from './data.js';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js';
 import * as R from './run.js';
 import { hashStr } from './rng.js';
 import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js';
@@ -13,6 +13,7 @@ const app = $('#app');
 initFx(app, $('#fx'));
 let run = loadRun();
 if (run && run.v !== 1) run = null;
+if (run) { run.tactics = run.tactics || []; run.relics = run.relics || []; run.pity = run.pity || 0; } // saves from before the expansion
 
 function applySettings() {
   audioSettings({ sound: meta.settings.sound, music: meta.settings.music });
@@ -137,7 +138,16 @@ function openPackFlow(result, ret) {
   run.openPack = { result, ret };
   save();
   music('calm');
-  packScreen(ctxFor({ done: () => { run.openPack = null; save(); returnTo(ret); } }), result);
+  if (result.pityHit && !result.pityShown) { result.pityShown = true; save(); setTimeout(() => toast('<b style="color:#ff4fd8">MYTHIC METER FULL</b> — the last card is a guaranteed Mythic!', 3000), 300); }
+  packScreen(ctxFor({ done: () => {
+    run.openPack = null;
+    if (result.tactic) {
+      const T = TACTICS[result.tactic];
+      if (R.addTactic(run, result.tactic)) setTimeout(() => toast(`${icon('ticket')} <b>Bonus Tactic!</b> ${T.name} — ${T.text}`, 3200), 250);
+      else { run.coins += 4; setTimeout(() => toast(`Bonus Tactic ${T.name}, but you're full — sold for 4 coins.`, 2800), 250); }
+    }
+    save(); returnTo(ret);
+  } }), result);
 }
 function returnTo(ret) {
   if (ret === 'reward') return rewardScreen();
@@ -156,14 +166,61 @@ const NODE = {
   rest: { icon: 'campfire', color: '#6dffb0', label: 'Lounge' },
   grader: { icon: 'magnifying-glass', color: '#5fd3ff', label: 'Grader' },
   event: { icon: 'card-random', color: '#b07cff', label: '???' },
+  treasure: { icon: 'open-treasure-chest', color: '#ffe27a', label: 'Treasure' },
   boss: { icon: 'crowned-skull', color: '#ff4fd8', label: 'Boss' },
 };
 const ACT_NAME = { 1: 'The Bottom Shelf', 2: 'The Display Case', 3: 'The Back Room' };
 
 function topbarRun(extra) {
-  return h('div', { class: 'topbar' }, pillHp(run), pillCoins(run.coins), h('span', { class: 'spacer' }), ...(extra || []),
+  const bar = h('div', { class: 'topbar' }, pillHp(run), pillCoins(run.coins), h('span', { class: 'spacer' }), ...(extra || []),
     h('button', { class: 'iconbtn', onclick: () => { sfx.tap(); binder(true); }, html: icon('card-draw') }),
     h('button', { class: 'iconbtn', onclick: settings, html: icon('gears') }));
+  return h('div', { class: 'topwrap' }, bar, runStrip());
+}
+// Relics · tactics · Mythic meter — the run's "build" at a glance.
+function runStrip() {
+  const strip = h('div', { class: 'runstrip' });
+  const rel = h('button', { class: 'relics' + (run.relics.length ? '' : ' none'), html: run.relics.length ? run.relics.map(r => `<i title="${RELICS[r].name}">${icon(RELICS[r].icon)}</i>`).join('') : `${icon('open-treasure-chest')}<span>No relics yet</span>` });
+  rel.addEventListener('click', () => { sfx.tap(); showBuild(); });
+  const tac = h('button', { class: 'tacs', html: `${icon('ticket')}<b>${run.tactics.length}</b>/${R.tacticCap(run)}` });
+  tac.addEventListener('click', () => { sfx.tap(); showBuild(); });
+  const pct = Math.min(100, run.pity / R.PITY_MAX * 100);
+  const mm = h('button', { class: 'mythic' + (run.pity >= R.PITY_MAX ? ' full' : ''), html: `<span>MYTHIC</span><div class="mbar"><i style="width:${pct}%"></i></div>` });
+  mm.addEventListener('click', () => { sfx.tap(); toast(run.pity >= R.PITY_MAX ? '<b>Mythic meter FULL!</b> The last card of your next pack is a guaranteed Mythic.' : `<b>Mythic meter ${run.pity}/${R.PITY_MAX}</b><br>Every card you pull without a Mythic charges it. When full, your next pack ends in a guaranteed Mythic.`, 3500); });
+  strip.append(rel, tac, mm);
+  return strip;
+}
+function showBuild() {
+  const items = [h('div', { class: 'h2' }, 'Your build')];
+  items.push(h('div', { class: 'sub', style: { margin: '8px 0 4px', 'font-weight': 900, 'letter-spacing': '.12em' } }, `RELICS (${run.relics.length})`));
+  if (!run.relics.length) items.push(h('p', { class: 'sub' }, 'Beat a boss or open a Treasure chest on the map to get relics — permanent rule-changers for this run.'));
+  for (const r of run.relics) items.push(h('div', { class: 'relic-line', html: `<i>${icon(RELICS[r].icon)}</i><div><b>${RELICS[r].name}</b><br><span>${RELICS[r].text}</span></div>` }));
+  items.push(h('div', { class: 'sub', style: { margin: '12px 0 4px', 'font-weight': 900, 'letter-spacing': '.12em' } }, `TACTICS (${run.tactics.length}/${R.tacticCap(run)})`));
+  if (!run.tactics.length) items.push(h('p', { class: 'sub' }, 'One-shot tricks you play during a fight. Find them in packs, elites and shops.'));
+  for (const t of run.tactics) { const T = TACTICS[t]; items.push(h('div', { class: 'relic-line', style: { '--k': RARITY[T.r].color }, html: `<i>${icon(T.icon)}</i><div><b>${T.name}</b><br><span>${T.text}</span></div>` })); }
+  items.push(h('button', { class: 'btn ghost small', style: { width: '100%', 'margin-top': '12px' }, onclick: () => m.close() }, 'Close'));
+  const m = modal(items);
+}
+// Relic choice: big tappable relic cards; tap one, then confirm.
+function relicPicker(choices, onPick, title = 'Choose a relic') {
+  let sel = null;
+  const wrap = h('div', { class: 'relic-pick' }, h('div', { class: 'h2', style: { 'text-align': 'center' } }, title), h('div', { class: 'sub', style: { 'text-align': 'center' } }, 'Permanent for the rest of this run.'));
+  const list = h('div', { class: 'relic-cards' });
+  const take = h('button', { class: 'btn gold', disabled: true, style: { width: '100%' } }, 'Take it');
+  choices.forEach(id => {
+    const Rl = RELICS[id];
+    const c = h('div', { class: 'relic-card', html: `<div class="ric">${icon(Rl.icon)}</div><b>${Rl.name}</b><span>${Rl.text}</span>` });
+    c.addEventListener('click', () => { sel = id; sfx.flip(); list.querySelectorAll('.relic-card').forEach(x => x.classList.toggle('sel', x === c)); take.disabled = false; take.textContent = 'Take ' + Rl.name; });
+    list.append(c);
+  });
+  take.addEventListener('click', () => {
+    if (!sel) return;
+    const p = centerOf(list.querySelector('.sel'));
+    burst(p.x, p.y, { count: 50, colors: ['#ffe27a', '#fff', '#ff4fd8'], kind: 'star', speed: 7 }); sfx.reveal('R');
+    onPick(sel);
+  });
+  wrap.append(list, take);
+  return wrap;
 }
 
 function mapScreen(fresh) {
@@ -186,7 +243,8 @@ function mapScreen(fresh) {
   for (const row of rows) for (const nd of row) {
     const N = NODE[nd.type], p = pos(nd);
     const el = h('div', { class: `node ${nd.type === 'boss' ? 'boss' : ''}${nd.done ? ' done' : ''}${run.pos === nd.id ? ' here' : ''}${can.has(nd.id) ? ' can' : ''}`, style: { left: p.x + '%', top: p.y + 'px', '--nc': N.color } });
-    el.innerHTML = icon(nd.type === 'boss' ? ENEMIES[R.pickBossId(run)].icon : N.icon) + `<span class="lbl">${nd.type === 'boss' ? ENEMIES[R.pickBossId(run)].name : N.label}</span>`;
+    el.innerHTML = icon(nd.type === 'boss' ? ENEMIES[R.pickBossId(run)].icon : N.icon) + `<span class="lbl">${nd.type === 'boss' ? ENEMIES[R.pickBossId(run)].name : N.label}</span>`
+      + (nd.type === 'elite' && nd.loot && SETS[nd.loot] && !nd.done ? `<span class="loottag" style="--k:${SETS[nd.loot].color}">${icon(SETS[nd.loot].glyph)}${SETS[nd.loot].name}</span>` : '');
     if (can.has(nd.id)) el.addEventListener('click', () => { sfx.tap(); enter(nd.id); });
     map.append(el);
   }
@@ -220,6 +278,7 @@ function enter(id) {
   if (nd.type === 'rest') run.pending = { type: 'node', node: 'rest' };
   if (nd.type === 'grader') run.pending = { type: 'node', node: 'grader' };
   if (nd.type === 'event') run.pending = { type: 'node', node: 'event', ev: R.pickEvent(run) };
+  if (nd.type === 'treasure') run.pending = { type: 'node', node: 'treasure', choices: R.relicChoices(run, 2) };
   save(); nodeScreen();
 }
 
@@ -270,7 +329,11 @@ function rewardScreen() {
   const lines = h('div', { class: 'reward-lines' }, h('span', { class: 'pill coins', html: `${icon('two-coins')}+${rew.coins}` }));
   if (rew.interest) lines.append(h('span', { class: 'pill coins', html: `${icon('coins-pile')}+${rew.interest} interest` }));
   if (rew.healed) lines.append(h('span', { class: 'pill hp', html: `${icon('heart-beats')}+${rew.healed} HP` }));
+  if (rew.tactic) lines.append(h('span', { class: 'pill', style: { color: RARITY[TACTICS[rew.tactic].r].color }, html: `${icon('ticket')}Tactic: ${TACTICS[rew.tactic].name}` }));
   body.append(lines);
+  const needRelic = rew.relics && rew.relics.length && !p.relic;
+  if (needRelic) body.append(relicPicker(rew.relics, (id) => { p.relic = id; R.takeRelic(run, id); save(); toast(`<b>${RELICS[id].name}</b> — ${RELICS[id].text}`, 3000); rewardScreen(); }, 'Boss relic — choose one'));
+  else if (p.relic) lines.append(h('span', { class: 'pill', style: { color: '#ffe27a' }, html: `${icon(RELICS[p.relic].icon)}${RELICS[p.relic].name}` }));
   if (rew.shattered.length) body.append(h('div', { class: 'rulebar', html: `<b>Shattered:</b> ${rew.shattered.map(c => CARDS[c.id].name).join(', ')} — Cracked cards break after 3 fights.` }));
   for (const u of rew.unlocks || []) { const U = UNLOCKS.find(x => x.id === u); body.append(h('div', { class: 'unlock done', html: `${icon('star-swirl')}<span><b>UNLOCKED:</b> ${U.text}</span>` })); }
   const packsEl = h('div', { style: { display: 'flex', gap: '8px', 'justify-content': 'center', 'flex-wrap': 'wrap' } });
@@ -285,9 +348,9 @@ function rewardScreen() {
     packsEl.append(w);
   });
   if (rew.packs.length) body.append(packsEl);
-  const allOpen = rew.packs.every((_, k) => p.opened.includes(k));
+  const allOpen = rew.packs.every((_, k) => p.opened.includes(k)) && !needRelic;
   const cont = h('button', { class: 'btn ' + (allOpen ? 'gold' : 'ghost'), style: { margin: '10px 16px calc(14px + env(safe-area-inset-bottom))' }, onclick: () => {
-    if (!allOpen) { toast('Open your loot first!'); return; }
+    if (!allOpen) { toast(needRelic ? 'Pick a relic first!' : 'Open your loot first!'); return; }
     sfx.tap(); run.pending = null; afterNode();
   } }, 'Continue');
   scr.append(topbarRun(), body, cont);
@@ -307,6 +370,7 @@ function nodeScreen() {
   if (p.node === 'rest') return restScreen();
   if (p.node === 'grader') return graderScreen();
   if (p.node === 'event') return eventScreen();
+  if (p.node === 'treasure') return treasureScreen();
 }
 
 function leaveBtn(label = 'Leave') {
@@ -338,6 +402,37 @@ function shopScreen() {
       grid.append(w);
     });
     body.append(grid);
+    // the display case: one shiny Rare/Mythic to save up for
+    if (S.showcase) {
+      const sc = S.showcase;
+      const cardHost = h('div', { class: 'sc-card' }, cardEl(sc.card, { tilt: true }));
+      if (!sc.sold) idleShimmer(cardHost.firstChild, 1.2);
+      const def = CARDS[sc.card.id];
+      const buy = h('button', { class: 'btn ' + (sc.sold ? 'ghost' : run.coins >= sc.price ? 'gold' : 'ghost') + ' small', disabled: sc.sold, html: sc.sold ? 'SOLD' : `${icon('two-coins')}${sc.price}` });
+      buy.addEventListener('click', () => {
+        if (run.coins < sc.price) { toast(`Save up! ${sc.price - run.coins} more coins.`); sfx.back(); return; }
+        run.coins -= sc.price; sc.sold = true; sfx.buy();
+        openPackFlow({ type: 'showcase', cards: [sc.card], tell: null }, 'shop');
+      });
+      cardHost.firstChild.addEventListener('click', () => zoomCard(sc.card));
+      body.append(h('div', { class: 'showcase' + (sc.sold ? ' sold' : '') }, h('div', { class: 'sc-lab' }, 'DISPLAY CASE'), cardHost,
+        h('div', { class: 'sc-info' }, h('b', {}, def.name), h('span', { html: `${RARITY[def.r].name}${sc.card.ed !== 'normal' ? ' · ' + sc.card.ed.toUpperCase() : ''}` }), buy)));
+    }
+    if (S.tactics && S.tactics.length) {
+      const tl = h('div', { class: 'shop-tacs' }, h('div', { class: 'sc-lab' }, `TACTICS · you hold ${run.tactics.length}/${R.tacticCap(run)}`));
+      for (const t of S.tactics) {
+        const T = TACTICS[t.id];
+        const w = h('button', { class: 'tac-ware' + (t.sold ? ' sold' : ''), style: { '--k': RARITY[T.r].color }, html: `<i>${icon(T.icon)}</i><div><b>${T.name}</b><span>${T.text}</span></div><em>${t.sold ? 'SOLD' : icon('two-coins') + t.price}</em>` });
+        w.addEventListener('click', () => {
+          if (t.sold) return;
+          if (run.coins < t.price) { toast('Not enough coins'); sfx.back(); return; }
+          if (!R.addTactic(run, t.id)) { toast(`You can only hold ${R.tacticCap(run)} Tactics.`); sfx.back(); return; }
+          run.coins -= t.price; t.sold = true; sfx.buy(); save(); shopScreen();
+        });
+        tl.append(w);
+      }
+      body.append(tl);
+    }
     const mend = h('div', { class: 'service' + (S.mend.used || run.hp >= run.maxHp ? ' used' : '') }, h('div', { class: 'wn' }, 'Mend'), h('div', { class: 'wb' }, `Heal ${S.mend.amt} HP`), h('span', { class: 'price', html: `${icon('two-coins')}${S.mend.price}` }));
     mend.addEventListener('click', () => {
       if (run.coins < S.mend.price) { toast('Not enough coins'); return; }
@@ -357,6 +452,32 @@ function shopScreen() {
   });
   render();
   scr.append(topbarRun(), body, arr.detail, arr.el, leaveBtn('Leave shop'));
+  mount(scr);
+}
+
+function treasureScreen() {
+  music('calm');
+  const p = run.pending;
+  const scr = h('div', { class: 'screen' });
+  const body = h('div', { class: 'scroll center', style: { flex: '1', padding: '14px 16px', gap: '12px', 'justify-content': 'safe center' } });
+  const chest = h('div', { class: 'chest' + (p.opened ? ' open' : ''), html: icon(p.opened ? 'open-treasure-chest' : 'locked-chest') });
+  body.append(h('div', { class: 'h1', style: { color: '#ffe27a' } }, 'Treasure'), chest);
+  const render = () => {
+    [...body.querySelectorAll('.relic-pick, .helpline')].forEach(e => e.remove());
+    if (!p.opened) { body.append(h('div', { class: 'helpline' }, 'Tap the chest to open it.')); return; }
+    if (!p.choices.length) { body.append(h('div', { class: 'helpline' }, 'Empty! You already own every relic. Have 25 coins instead.')); return; }
+    body.append(relicPicker(p.choices, (id) => { R.takeRelic(run, id); toast(`<b>${RELICS[id].name}</b> — ${RELICS[id].text}`, 3000); run.pending = null; afterNode(); }));
+  };
+  chest.addEventListener('click', () => {
+    if (p.opened) return;
+    p.opened = true; if (!p.choices.length) run.coins += 25; save();
+    chest.classList.add('open'); chest.innerHTML = icon('open-treasure-chest');
+    const c = centerOf(chest); burst(c.x, c.y, { count: 70, colors: ['#ffe27a', '#ffd166', '#fff'], kind: 'star', speed: 8, lift: 3 }); sfx.reveal('M'); shake();
+    render(); if (p.choices.length) lv.textContent = 'Skip the relic';
+  });
+  render();
+  const lv = leaveBtn(p.opened && p.choices.length ? 'Skip the relic' : 'Leave');
+  scr.append(topbarRun(), body, lv);
   mount(scr);
 }
 

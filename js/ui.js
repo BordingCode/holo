@@ -1,7 +1,7 @@
 // Shared UI helpers: DOM builder, icons, card rendering, tilt/shine, arranger, modals.
 import { ICONS } from './icons.js';
-import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES } from './data.js';
-import { cardText, cardValues } from './engine.js';
+import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js';
+import { cardText, cardValues, activeBonuses } from './engine.js';
 import { sellValue } from './run.js';
 import { sfx } from './audio.js';
 
@@ -115,13 +115,14 @@ export function idleShimmer(el, speed = 1) {
 
 export function packColors(spec) {
   if (spec.type === 'gumball') return ['#ff6bd6', '#6a1d8c'];
+  if (spec.type === 'showcase') return ['#ffe27a', '#7a4a00'];
   if (spec.type === 'set') return [SETS[spec.set].color, SETS[spec.set].c2];
   return [PACKS[spec.type].color, PACKS[spec.type].c2];
 }
-export function packName(spec) { if (spec.type === 'gumball') return 'Gumball Capsule'; return spec.type === 'set' ? `${SETS[spec.set].name} Box` : PACKS[spec.type].name; }
+export function packName(spec) { if (spec.type === 'gumball') return 'Gumball Capsule'; if (spec.type === 'showcase') return 'Display Case'; return spec.type === 'set' ? `${SETS[spec.set].name} Box` : PACKS[spec.type].name; }
 export function packIcon(spec) {
   if (spec.type === 'set') return SETS[spec.set].glyph;
-  return { gumball: 'slot-machine', booster: 'star-swirl', cursed: 'all-seeing-eye', collector: 'crowned-skull' }[spec.type] || 'card-random';
+  return { showcase: 'open-treasure-chest', gumball: 'slot-machine', booster: 'star-swirl', cursed: 'all-seeing-eye', collector: 'crowned-skull' }[spec.type] || 'card-random';
 }
 
 // ---------- toasts / modals ----------
@@ -175,7 +176,7 @@ export function arranger(run, opts = {}) {
     const ext = opts.external && opts.external();
     if (!ext) detailHost.innerHTML = '';
     const lab = h('div', { class: 'lab' }, h('span', {}, opts.rowLabel || 'Your row — fires left → right'), h('span', {}, opts.hint || (sel ? 'Tap a slot to move' : 'Tap a card')));
-    const row = h('div', { class: 'slots' });
+    const row = h('div', { class: 'slots', style: { 'grid-template-columns': `repeat(${run.row.length}, minmax(0, 1fr))` } });
     const bench = h('div', { class: 'slots bench' });
     const mk = (where, arr, host, n) => {
       for (let i = 0; i < n; i++) {
@@ -184,6 +185,8 @@ export function arranger(run, opts = {}) {
         const s = h('div', { class: 'slot' + (sel && sel.where === where && sel.idx === i ? ' sel' : '') + (off ? ' off' : '') + ((sel || ext) && !lockedSlot(where, i) && !(sel && sel.where === where && sel.idx === i) ? ' target' : ''), 'data-off': off || '', 'data-where': where, 'data-idx': i });
         if (c) s.append(cardEl(c, { mini: true }));
         else s.append(h('span', { class: 'num' }, where === 'row' ? String(i + 1) : ''));
+        const marks = opts.slotMarks && opts.slotMarks(where, i);
+        if (marks && marks.length) { s.classList.add('marked'); s.append(h('div', { class: 'marks', html: marks.join('') })); }
         s.addEventListener('click', () => tap(where, i));
         host.append(s);
       }
@@ -191,7 +194,9 @@ export function arranger(run, opts = {}) {
     mk('row', run.row, row, run.row.length);
     const showBench = !opts.noBench && !(opts.benchHidden && opts.benchHidden());
     if (showBench) mk('bench', run.bench, bench, run.bench.length);
-    wrap.append(lab, row);
+    wrap.append(lab);
+    if (!opts.noChips) { const ch = setChips(run, opts.disabled ? opts.disabled() : {}); if (ch) wrap.append(ch); }
+    wrap.append(row);
     if (showBench) wrap.append(h('div', { class: 'lab', style: { 'padding-top': '6px' } }, h('span', {}, 'Bench — kept, but does not fire')), bench);
     if (sel) {
       const c = (sel.where === 'row' ? run.row : run.bench)[sel.idx];
@@ -227,6 +232,25 @@ export function arranger(run, opts = {}) {
 
   render();
   return { el: wrap, detail: detailHost, render, clear() { sel = null; render(); }, get sel() { return sel; }, sell };
+}
+
+// Set-bonus chips: one per set present in the row, lit when a tier is active.
+export function setChips(run, disabled = {}) {
+  const { counts, tiers } = activeBonuses(run.row, disabled, run.relics || []);
+  const sets = Object.keys(counts).filter(s => SET_BONUS[s]).sort((a, b) => counts[b] - counts[a]);
+  if (!sets.length) return null;
+  const el = h('div', { class: 'setchips' });
+  for (const s of sets) {
+    const n = counts[s], t = tiers[s], S = SETS[s];
+    const next = SET_BONUS[s].find(([k]) => k > n);
+    const chip = h('button', { class: 'setchip' + (t ? ' on' : ''), style: { '--k': S.color }, html: `${icon(S.glyph)}<b>${n}</b>${next ? `<span>/${next[0]}</span>` : '<span>MAX</span>'}${t ? '<i>' + '●'.repeat(t) + '</i>' : ''}` });
+    chip.addEventListener('click', (ev) => {
+      ev.stopPropagation(); sfx.tap();
+      toast(`<b style="color:${S.color}">${S.name} set (${n} cards)</b><br>` + SET_BONUS[s].map(([k, txt]) => `<span style="opacity:${n >= k ? 1 : .5}">${n >= k ? '✔' : '○'} ${k}: ${txt}</span>`).join('<br>'), 3800);
+    });
+    el.append(chip);
+  }
+  return el;
 }
 
 export function detailSheet(c, actions = [], extraNote = '') {
