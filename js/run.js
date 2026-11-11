@@ -30,8 +30,9 @@ export const HEAT = [
 
 export function enemyMods(run, kind) {
   const h = run.heat;
-  let hpMult = 1 + (h >= 1 ? 0.1 : 0) + (kind === 'elite' && h >= 4 ? 0.25 : 0);
-  const dmgMult = h >= 2 ? 1.1 : 1;
+  const ACT_HP = { 1: 1.1, 2: 1.35, 3: 1.6 }, ACT_DMG = { 1: 1.2, 2: 1.3, 3: 1.4 };
+  let hpMult = (ACT_HP[run.act] || 1) * (1 + (h >= 1 ? 0.1 : 0) + (kind === 'elite' && h >= 4 ? 0.25 : 0));
+  const dmgMult = (ACT_DMG[run.act] || 1) * (h >= 2 ? 1.1 : 1);
   const str = kind === 'boss' && h >= 7 ? 3 : 0;
   return { hpMult, dmgMult, str };
 }

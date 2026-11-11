@@ -265,7 +265,7 @@ function rewardScreen() {
   music('calm');
   const p = run.pending, rew = p.rew;
   const scr = h('div', { class: 'screen' });
-  const body = h('div', { class: 'scroll center', style: { flex: '1', padding: '10px 16px', gap: '12px' } });
+  const body = h('div', { class: 'scroll center', style: { flex: '1', padding: '10px 16px', gap: '12px', 'justify-content': 'safe center' } });
   body.append(h('div', { class: 'h1', style: { color: '#6dffb0', 'font-size': '40px' } }, rew.kind === 'boss' ? 'BOSS DEFEATED' : 'VICTORY'));
   const lines = [`<b style="color:var(--gold)">+${rew.coins} coins</b>`];
   if (rew.interest) lines.push(`<b style="color:var(--gold)">+${rew.interest} interest</b>`);
@@ -590,7 +590,8 @@ window.__holo = {
   coins(n) { run.coins += n; save(); resume(); },
   pack(type = 'booster', set) { openPackFlow(R.openPack(run, { type, set }), 'map'); },
   fight(kind = 'fight') { R.startBattle(run, kind); save(); battleFlow(); },
-  goto(fn) { ({ title, binder, heroSelect, mapScreen, endScreen })[fn](); },
+  goto(fn) { ({ title, binder, heroSelect, mapScreen, endScreen, resume })[fn](); },
+  node(node, ev) { run.pending = { type: 'node', node, ev: ev || 'trader', shop: R.makeShop(run), line: 'Packs fresh from the back. Mostly.' }; save(); nodeScreen(); },
 };
 
 title();

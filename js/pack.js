@@ -9,6 +9,9 @@ import { sellValue, mergeInto, allOwned } from './run.js';
 // result = {type, set, cards, tell, mustKeep}; ctx = {run, app, save, done()}
 export function packScreen(ctx, result, { skipTear = false } = {}) {
   const { run } = ctx;
+  // each pulled card is recorded in the binder exactly once, even across reloads
+  result.rec ||= [];
+  const record = k => { if (result.rec[k]) return { isNew: false }; result.rec[k] = true; const r = recordPull(result.cards[k]); saveMeta(); ctx.save(); return r; };
   const scr = h('div', { class: 'screen' });
   ctx.mount(scr);
   if (skipTear || result.revealed) return trayPhase();
@@ -122,7 +125,7 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
           burst(pos.x, pos.y, { count: [10, 24, 50, 110][RARITY_RANK[def.r]], colors: RARITY_FX[def.r], speed: [3, 5, 8, 11][RARITY_RANK[def.r]], kind: RARITY_RANK[def.r] >= 2 ? 'star' : 'spark', size: 3 });
           if (def.r === 'M') { shake(true); banner('MYTHIC!', def.name, '#ff4fd8'); setTimeout(() => burst(pos.x, pos.y, { count: 80, colors: RARITY_FX.M, kind: 'confetti', speed: 9, lift: 3 }), 300); }
           else if (def.r === 'R') shake();
-          const rec = recordPull(c); saveMeta();
+          const rec = record(cur);
           pulls.push({ c, rec });
           const owned = allOwned(run).some(o => o.id === c.id);
           label.innerHTML = `<div class="rar" style="color:${RARITY[def.r].color}">${RARITY[def.r].name.toUpperCase()}</div>
@@ -155,8 +158,7 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
     });
     function revealAll() {
       skip.remove();
-      for (let k = cur; k < result.cards.length; k++) { const c = result.cards[k]; if (!(flipped && k === cur)) pulls.push({ c, rec: recordPull(c) }); }
-      saveMeta();
+      for (let k = cur; k < result.cards.length; k++) record(k);
       result.revealed = true; ctx.save(); trayPhase();
     }
   }

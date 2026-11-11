@@ -106,7 +106,7 @@ card('gilded', 'price_tag', 'Price Tag', 'C', 'price-tag', { n: 2 }, 'Apply {n} 
 card('gilded', 'bribe', 'Bribe', 'U', 'cash', { c: 4 }, 'Pay {c} coins: the target skips its next action.', (x, v) => x.bribe(v.c), { fixed: ['c'] });
 card('gilded', 'appraiser', 'Appraiser', 'U', 'gems', { d: 6 }, 'Deal {d} for each Rare or Mythic card in your row.', (x, v) => x.hit(v.d * x.countRow(c => c.r === 'R' || c.r === 'M')));
 card('gilded', 'lucky_clover', 'Lucky Clover', 'U', 'clover', {}, 'PASSIVE. Special editions show up twice as often in packs (while in row or bench).', null, { passive: 'clover' });
-card('gilded', 'golden_gun', 'Golden Gun', 'R', 'gold-bar', {}, 'Deal damage equal to half your coins.', (x) => x.hit(Math.round(x.B.coins / 2 * x.mult)));
+card('gilded', 'golden_gun', 'Golden Gun', 'R', 'gold-bar', { n: 14 }, 'Deal damage equal to a third of your coins (max {n}).', (x, v) => x.hit(Math.min(v.n, Math.round(x.B.coins / 3 * x.mult))));
 card('gilded', 'interest', 'Compound Interest', 'R', 'coins-pile', {}, 'PASSIVE. After each fight, gain 1 coin per 5 you hold (max 8).', null, { passive: 'interest' });
 card('gilded', 'jackpot', 'Jackpot', 'M', 'slot-machine', { d: 20 }, 'PASSIVE. Every 7th card you fire hits the JACKPOT: deal {d} to ALL and gain 5 coins.', null, { passive: 'jackpot' });
 
@@ -134,14 +134,14 @@ export const ENEMIES = {
   silverfish:  { name: 'Silverfish',  icon: 'centipede', hp: 14, color: '#c5d3e0', moves: [{ poison: 3 }, { atk: 3, times: 2 }, { atk: 5 }] },
   staple_beast:{ name: 'Staple Beast',icon: 'stapler-heavy-duty', hp: 52, color: '#7f8fa6', elite: true, moves: [{ atk: 4, times: 3 }, { str: 2, block: 8 }, { atk: 12 }] },
   price_gun:   { name: 'Price Gun',   icon: 'zat-gun', hp: 44, color: '#ff8f6b', elite: true, moves: [{ vuln: 2, atk: 4 }, { atk: 15 }, { atk: 6, times: 2 }] },
-  shredder:    { name: 'The Shredder',icon: 'box-cutter', hp: 120, color: '#ff5d5d', boss: true, title: 'Act I Boss',
+  shredder:    { name: 'The Shredder',icon: 'box-cutter', hp: 130, color: '#ff5d5d', boss: true, title: 'Act I Boss',
     rule: 'Every other round it SHREDS your leftmost working card for the rest of the fight. Put something you can spare on the left.',
     moves: [{ atk: 11 }, { special: 'shred', atk: 6 }, { block: 10, atk: 7 }, { special: 'shred', atk: 6 }] },
 
   // Act 2 — the display case
-  sleeve_slime:{ name: 'Sleeve Slime',icon: 'slime', hp: 28, color: '#7fe0c2', split: 'slimelet', moves: [{ atk: 8 }, { poison: 4 }, { atk: 5, block: 5 }] },
+  sleeve_slime:{ name: 'Sleeve Slime',icon: 'slime', hp: 26, color: '#7fe0c2', split: 'slimelet', moves: [{ atk: 7 }, { poison: 4 }, { atk: 5, block: 5 }] },
   slimelet:    { name: 'Slimelet',    icon: 'slime', hp: 11, color: '#a9f0d9', small: true, moves: [{ atk: 4 }, { poison: 2 }] },
-  tape_golem:  { name: 'Tape Golem',  icon: 'metal-golem-head', hp: 40, color: '#d6b98a', moves: [{ block: 14 }, { atk: 13 }, { atk: 7, block: 7 }] },
+  tape_golem:  { name: 'Tape Golem',  icon: 'metal-golem-head', hp: 38, color: '#d6b98a', moves: [{ block: 12 }, { atk: 11 }, { atk: 6, block: 6 }] },
   dust_moth:   { name: 'Dust Moth',   icon: 'butterfly', hp: 14, color: '#d9c7f2', moves: [{ atk: 4 }, { weak: 1, atk: 2 }, { atk: 3, times: 2 }] },
   bootleg:     { name: 'Bootleg',     icon: 'two-shadows', hp: 34, color: '#8c8aa8',
     rule: 'COPY: hits you back as hard as the biggest single hit you dealt this round (3–30).', moves: [{ special: 'copy' }, { atk: 6 }, { special: 'copy' }, { block: 8 }] },
@@ -149,12 +149,12 @@ export const ENEMIES = {
     rule: 'WRAP: your first card won\'t fire next round.', moves: [{ special: 'wrap', atk: 4 }, { atk: 10 }, { atk: 6 }] },
   mimic:       { name: 'Booster Mimic', icon: 'mimic-chest', hp: 88, color: '#ffb347', elite: true, moves: [{ block: 30 }, { atk: 20 }, { atk: 7, times: 3 }, { str: 3, atk: 8 }] },
   ink_kraken:  { name: 'Ink Kraken',  icon: 'octopus', hp: 78, color: '#6f7cff', elite: true, moves: [{ weak: 2, atk: 7 }, { atk: 3, times: 5 }, { block: 12, atk: 9 }] },
-  collector:   { name: 'The Collector', icon: 'old-king', hp: 250, color: '#ffd166', boss: true, title: 'Act II Boss',
+  collector:   { name: 'The Collector', icon: 'old-king', hp: 240, color: '#ffd166', boss: true, title: 'Act II Boss',
     rule: 'Every 3rd move it STEALS your rarest working card into its binder. Beat it to get them back.',
-    moves: [{ atk: 14 }, { atk: 5, times: 4 }, { special: 'steal', block: 12 }, { str: 2, atk: 9 }, { atk: 18 }, { special: 'steal', block: 12 }] },
+    moves: [{ atk: 12 }, { atk: 4, times: 4 }, { special: 'steal', block: 12 }, { str: 2, atk: 9 }, { atk: 18 }, { special: 'steal', block: 12 }] },
 
   // Act 3 — the back room
-  holo_hound:  { name: 'Holo Hound',  icon: 'hound', hp: 50, color: '#7ff0ff', moves: [{ atk: 8, times: 2 }, { str: 2, block: 8 }, { atk: 14 }] },
+  holo_hound:  { name: 'Holo Hound',  icon: 'hound', hp: 44, color: '#7ff0ff', moves: [{ atk: 6, times: 2 }, { str: 2, block: 8 }, { atk: 14 }] },
   foil_serpent:{ name: 'Foil Serpent',icon: 'cobra', hp: 56, color: '#b6ff6b', moves: [{ poison: 6 }, { atk: 15 }, { atk: 6, poison: 3 }] },
   raven:       { name: 'Shoplift Raven', icon: 'raven', hp: 34, color: '#9aa0b8',
     rule: 'PILFER: steals 4 of your coins.', moves: [{ special: 'pilfer', atk: 6 }, { atk: 10 }, { atk: 5, times: 2 }] },
@@ -162,7 +162,7 @@ export const ENEMIES = {
   chase_dragon:{ name: 'Chase Dragon',icon: 'dragon-head', hp: 150, color: '#ff6b9d', elite: true, moves: [{ burn: 6, atk: 8 }, { atk: 26 }, { block: 20, str: 3 }] },
   grading_golem:{ name: 'Grading Golem', icon: 'rock-golem', hp: 170, color: '#c2b280', elite: true,
     rule: 'Grows stronger every round.', moves: [{ str: 3, atk: 10 }, { str: 3, block: 15 }, { str: 3, atk: 6, times: 2 }] },
-  proprietor:  { name: 'The Proprietor', icon: 'spectre', hp: 440, color: '#ff4fd8', boss: true, title: 'Final Boss',
+  proprietor:  { name: 'The Proprietor', icon: 'spectre', hp: 460, color: '#ff4fd8', boss: true, title: 'Final Boss',
     rule: 'At half HP: CLOSING TIME. The lights go out and your row fires RIGHT-TO-LEFT.',
     moves: [{ atk: 16 }, { burn: 5, atk: 8 }, { block: 20, str: 2 }, { atk: 6, times: 4 }, { poison: 6, atk: 10 }] },
 };
@@ -175,7 +175,7 @@ export const ENCOUNTERS = {
     boss: ['shredder'],
   },
   2: {
-    easy: [['sleeve_slime'], ['tape_golem']],
+    easy: [['sleeve_slime'], ['tape_golem'], ['dust_moth', 'dust_moth']],
     normal: [['dust_moth', 'dust_moth', 'dust_moth'], ['bootleg', 'dust_moth'], ['shrink_wraith', 'sleeve_slime'], ['tape_golem', 'dust_moth'], ['bootleg', 'shrink_wraith']],
     elite: [['mimic'], ['ink_kraken']],
     boss: ['collector'],
@@ -194,7 +194,7 @@ export const ENCOUNTERS = {
 export const HEROES = {
   kip: { name: 'Kip', title: 'the Paper Knight', icon: 'black-knight-helm', color: '#9fd0ff', hp: 60, coins: 12,
     start: ['jab', 'jab', 'guard', 'whetstone'], perk: 'STEADY: start every fight with 6 Block.', perkId: 'steady' },
-  wick: { name: 'Wick', title: 'the Candle Witch', icon: 'candle-flame', color: '#ff9a4d', hp: 50, coins: 12,
+  wick: { name: 'Wick', title: 'the Candle Witch', icon: 'candle-flame', color: '#ff9a4d', hp: 55, coins: 12,
     start: ['ember_fang', 'kindling', 'jab', 'guard'], perk: 'KINDLED: all Burn you apply is +1.', perkId: 'kindled',
     unlock: { text: 'Defeat The Shredder', key: 'beatShredder' } },
   glint: { name: 'Glint', title: 'the Fox Thief', icon: 'fox-head', color: '#ffd166', hp: 52, coins: 30,
