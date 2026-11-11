@@ -1,0 +1,232 @@
+// Battle screen: plan (rearrange, target) → FIGHT → animated event playback.
+import { CARDS, ENEMIES, HEROES } from './data.js';
+import { playRound, intentView, alive } from './engine.js';
+import { h, $, $$, icon, arranger, toast, pillCoins } from './ui.js';
+import { sfx, music } from './audio.js';
+import { burst, centerOf, floatText, shake, banner } from './fx.js';
+import { meta, saveMeta } from './meta.js';
+
+const STATUS = [['burn', 'flame', '#ff8a3d'], ['poison', 'poison', '#9be15d'], ['vuln', 'broken-shield', '#ff6bd6'], ['weak', 'broken-bone', '#b8aee0'], ['str', 'biceps', '#ffb03a'], ['thorns', 'thorny-vine', '#c7e07a']];
+const SPECIAL_ICON = { shred: 'box-cutter', steal: 'old-king', copy: 'two-shadows', wrap: 'floating-ghost', pilfer: 'two-coins' };
+const SPECIAL_TEXT = { shred: 'Shred', steal: 'Steal', copy: 'Copy', wrap: 'Wrap', pilfer: 'Pilfer' };
+const DMG_COLOR = { hit: '#ffffff', atk: '#ff5d73', burn: '#ff8a3d', poison: '#9be15d', thorns: '#c7e07a', king: '#b07cff', jackpot: '#ffd166', self: '#ff5d73' };
+
+export function battleScreen(ctx, B, kind) {
+  const { run } = ctx;
+  const hero = HEROES[run.hero];
+  const scr = h('div', { class: 'screen' });
+  ctx.mount(scr);
+  const isBoss = kind === 'boss';
+  music(isBoss ? 'boss' : 'fight');
+
+  let playing = false, auto = false, benchOpen = false;
+  const speeds = [1, 2, 3];
+  let speed = meta.settings.speed || 1;
+
+  // ---- top bar
+  const roundLbl = h('span', { class: 'pill' }, 'Round 1');
+  const coinsPill = pillCoins(B.coins);
+  const speedBtn = h('button', { class: 'pill', style: { cursor: 'pointer' }, onclick: () => { speed = speeds[(speeds.indexOf(speed) + 1) % speeds.length]; meta.settings.speed = speed; saveMeta(); speedBtn.textContent = speed + '×'; sfx.tap(); } }, speed + '×');
+  const top = h('div', { class: 'topbar' }, roundLbl, h('span', { class: 'spacer' }), coinsPill, speedBtn);
+
+  // ---- arena
+  const arena = h('div', { class: 'arena' });
+  const enemiesEl = h('div', { class: 'enemies' });
+  const combo = h('div', { class: 'combo' });
+  arena.append(enemiesEl, combo);
+  const foeEls = [];
+
+  function foeEl(e, i) {
+    const d = ENEMIES[e.id];
+    const el = h('div', { class: 'foe' + (d.boss ? ' boss' : '') + (d.small ? ' small' : ''), style: { '--fc': d.color } });
+    el.innerHTML = `<div class="body"><div class="aura"></div>${icon(d.icon)}<span class="blockbadge"></span></div>
+      <div class="nm">${e.name}</div><div class="bar"><b></b><i></i><span></span></div><div class="stats-row"></div><div class="intent"></div>`;
+    el.addEventListener('click', () => {
+      if (e.dead) return;
+      B.target = i; sfx.tap(); updateTargets(); showRule(e);
+    });
+    updUnit(el, e);
+    return el;
+  }
+  function updUnit(el, u) {
+    const pct = Math.max(0, u.hp / u.maxHp * 100);
+    el.querySelector('.bar i').style.width = pct + '%';
+    el.querySelector('.bar b').style.width = pct + '%';
+    el.querySelector('.bar span').textContent = `${Math.max(0, u.hp)}/${u.maxHp}`;
+    const bb = el.querySelector('.blockbadge');
+    bb.classList.toggle('on', u.block > 0); bb.textContent = u.block;
+    const sr = el.querySelector('.stats-row');
+    sr.innerHTML = STATUS.filter(([k]) => u[k] > 0).map(([k, ic, col]) => `<span class="st" style="--k:${col}" title="${k}">${icon(ic)}${u[k]}</span>`).join('');
+  }
+  function renderFoes() {
+    enemiesEl.innerHTML = ''; foeEls.length = 0;
+    B.enemies.forEach((e, i) => { const el = foeEl(e, i); if (e.dead) el.classList.add('dead'); foeEls.push(el); enemiesEl.append(el); });
+    updateTargets(); renderIntents();
+  }
+  function updateTargets() {
+    const t = B.enemies[B.target] && !B.enemies[B.target].dead ? B.target : B.enemies.indexOf(alive(B)[0]);
+    B.target = t;
+    foeEls.forEach((el, i) => el.classList.toggle('targeted', i === t && alive(B).length > 1));
+  }
+  function renderIntents() {
+    B.enemies.forEach((e, i) => {
+      const el = foeEls[i]; if (!el) return;
+      const box = el.querySelector('.intent');
+      if (e.dead) { box.style.display = 'none'; return; }
+      const v = intentView(B, e);
+      const parts = [];
+      if (v.special) parts.push(`<span class="spc">${icon(SPECIAL_ICON[v.special])}${SPECIAL_TEXT[v.special]}</span>`);
+      if (v.atk) parts.push(`<span class="atk">${icon('crossed-swords')}${v.approx ? '~' : ''}${v.atk}${v.times > 1 ? '×' + v.times : ''}</span>`);
+      if (v.block) parts.push(`<span class="blk">${icon('templar-shield')}${v.block}</span>`);
+      if (v.str) parts.push(`<span class="buf">${icon('biceps')}+${v.str}</span>`);
+      for (const [k, ic] of [['burn', 'flame'], ['poison', 'poison'], ['vuln', 'broken-shield'], ['weak', 'broken-bone']]) if (v[k]) parts.push(`<span class="deb">${icon(ic)}${v[k]}</span>`);
+      box.innerHTML = e.stunned ? '<span class="spc">Bribed — skips</span>' : parts.join('');
+      box.style.display = 'flex';
+      box.style.animation = 'none'; void box.offsetWidth; box.style.animation = '';
+    });
+  }
+
+  // ---- rule bar
+  const rulebar = h('div', { class: 'rulebar', style: { display: 'none' } });
+  function showRule(e) {
+    const d = e ? ENEMIES[e.id] : null;
+    const withRule = d && d.rule ? e : B.enemies.find(x => !x.dead && ENEMIES[x.id].rule);
+    if (!withRule) { rulebar.style.display = 'none'; return; }
+    rulebar.style.display = 'block';
+    rulebar.innerHTML = `<b>${withRule.name}:</b> ${ENEMIES[withRule.id].rule}`;
+  }
+
+  // ---- me
+  const me = h('div', { class: 'me', style: { '--hc': hero.color } });
+  me.innerHTML = `<div class="port">${icon(hero.icon)}<span class="blockbadge"></span></div>
+    <div style="flex:1;min-width:0"><div class="bar"><b></b><i></i><span></span></div><div class="stats-row" style="justify-content:flex-start"></div></div>`;
+  const updMe = u => updUnit(me, u || B.player);
+
+  // ---- row
+  const offLabel = (where, i) => where === 'row' && B.disabled[i] ? (B.disabled[i] === 'shred' ? 'SHREDDED' : 'STOLEN') : null;
+  const arr = arranger(run, {
+    noSell: true, noBench: false, rowLabel: B.reverse ? 'Your row — fires RIGHT → left!' : 'Your row — fires left → right',
+    locked: (where, i) => where === 'row' && !!B.disabled[i],
+    offLabel,
+    actions: () => [],
+    hint: 'Tap two cards to swap',
+    benchHidden: () => !benchOpen,
+  });
+  const fightBtn = h('button', { class: 'btn', style: { flex: '1' } }, 'FIGHT');
+  const autoBtn = h('button', { class: 'btn ghost small' }, 'Auto: off');
+  const controls = h('div', { class: 'battle-controls' }, autoBtn, fightBtn);
+  const benchToggle = h('button', { class: 'btn ghost small' }, 'Bench');
+  controls.prepend(benchToggle);
+  benchToggle.addEventListener('click', () => { benchOpen = !benchOpen; benchToggle.classList.toggle('gold', benchOpen); arr.render(); sfx.tap(); });
+
+  const bottom = h('div', {}, arr.detail, arr.el);
+  scr.append(top, arena, rulebar, me, bottom, controls);
+  renderFoes(); updMe(); showRule();
+
+  // intro banner
+  if (isBoss) { const e = B.enemies[0]; setTimeout(() => { banner(e.name.toUpperCase(), ENEMIES[e.id].title, ENEMIES[e.id].color); sfx.phase(); }, 250); }
+  else if (kind === 'elite') setTimeout(() => banner('ELITE', B.enemies.map(e => e.name).join(' & '), '#ffb03a'), 250);
+
+  // ---- playback
+  const delay = ms => new Promise(r => setTimeout(r, ms / speed));
+  const slotEl = i => arr.el.querySelector(`.slot[data-where="row"][data-idx="${i}"]`);
+  const at = el => centerOf(el);
+  const unitEl = (side, i) => side === 'p' ? me : foeEls[i];
+
+  async function handle(e) {
+    switch (e.t) {
+      case 'round': roundLbl.textContent = 'Round ' + e.round; combo.classList.remove('pop'); combo.style.opacity = '0'; return delay(120);
+      case 'fire': {
+        const s = slotEl(e.slot); if (!s) return;
+        s.classList.add('firing');
+        if (e.via != null) { const p = at(s); floatText(p.x, p.y - 40, 'COPY', '#b07cff'); }
+        setTimeout(() => s.classList.remove('firing'), 330 / speed);
+        return delay(170);
+      }
+      case 'combo':
+        if (e.n >= 2) { combo.innerHTML = `×${e.n}<small>COMBO</small>`; combo.classList.remove('pop'); void combo.offsetWidth; combo.classList.add('pop'); }
+        sfx.combo(e.n); return delay(70);
+      case 'dmg': {
+        const el = unitEl(e.side, e.i); if (!el) return;
+        const p = at(el.querySelector('.body, .port'));
+        if (e.side === 'e') {
+          el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+          if (e.amt > 0) { floatText(p.x + (Math.random() - 0.5) * 30, p.y - 10, String(e.amt), DMG_COLOR[e.kind] || '#fff', e.big); burst(p.x, p.y, { count: Math.min(30, 6 + e.amt), colors: [DMG_COLOR[e.kind] || '#fff', '#ffd166'], speed: 3 + Math.min(6, e.amt / 4) }); }
+          if (e.blocked) floatText(p.x + 30, p.y + 10, 'Blocked ' + e.blocked, '#7cc6ff');
+          if (e.amt > 0) sfx.hit(e.big); else if (e.blocked) sfx.blocked();
+          if (e.big) shake();
+        } else {
+          me.classList.remove('hurt'); void me.offsetWidth; if (e.amt > 0) me.classList.add('hurt');
+          if (e.amt > 0) { floatText(p.x + 40, p.y - 10, '-' + e.amt, '#ff5d73', e.amt >= 12); sfx.hurt(); if (e.amt >= 8) shake(e.amt >= 16); }
+          if (e.blocked) { floatText(p.x + 70, p.y + 14, 'Blocked ' + e.blocked, '#7cc6ff'); sfx.blocked(); }
+        }
+        updUnit(el, e.u);
+        return delay(e.kind === 'burn' || e.kind === 'poison' ? 230 : 150);
+      }
+      case 'block': { const el = unitEl(e.side, e.i); const p = at(el.querySelector('.body, .port')); floatText(p.x, p.y, '+' + e.n, '#7cc6ff'); updUnit(el, e.u); sfx.block(); return delay(130); }
+      case 'heal': { const p = at(me.querySelector('.port')); floatText(p.x + 40, p.y, '+' + e.n, '#6dffb0'); updMe(e.u); sfx.heal(); burst(p.x, p.y, { colors: ['#6dffb0', '#fff'], count: 12, speed: 2, gravity: -0.05 }); return delay(130); }
+      case 'status': {
+        const el = unitEl(e.side, e.i); if (!el) return;
+        updUnit(el, e.u);
+        if (e.k === 'cleanse') return delay(80);
+        const st = STATUS.find(s => s[0] === e.k);
+        const p = at(el.querySelector('.body, .port'));
+        floatText(p.x, p.y + 20, `+${e.n} ${e.k === 'vuln' ? 'Vulnerable' : e.k[0].toUpperCase() + e.k.slice(1)}`, st ? st[2] : '#fff');
+        if (e.k === 'burn') { sfx.burn(); burst(p.x, p.y + 20, { colors: ['#ff8a3d', '#ffd166'], count: 10, speed: 2, gravity: -0.08 }); }
+        else if (e.k === 'poison') sfx.poison(); else sfx.buff();
+        return delay(110);
+      }
+      case 'statusSync': { const el = unitEl(e.side, e.i); if (el) updUnit(el, e.u); return; }
+      case 'coins': { coinsPill.querySelector('.coinv').textContent = e.total; const p = at(coinsPill); floatText(p.x, p.y + 26, (e.n > 0 ? '+' : '') + e.n, '#ffd166'); if (e.n > 0) sfx.coin(); return delay(90); }
+      case 'die': {
+        if (e.side === 'e') { const el = foeEls[e.i]; const p = at(el.querySelector('.body')); burst(p.x, p.y, { count: 40, colors: [ENEMIES[B.enemies[e.i].id].color, '#fff'], speed: 6, kind: 'confetti' }); el.classList.add('dead'); sfx.die(); updateTargets(); }
+        return delay(380);
+      }
+      case 'spawn': { const el = foeEl(B.enemies[e.i], e.i); foeEls[e.i] = el; enemiesEl.append(el); burst(at(el).x, at(el).y, { colors: ['#a9f0d9'], count: 16 }); return delay(260); }
+      case 'act': {
+        const el = foeEls[e.i]; if (!el) return;
+        if (e.stunned) { const p = at(el); floatText(p.x, p.y, 'Skipped!', '#ffd166'); return delay(300); }
+        el.classList.remove('lunge'); void el.offsetWidth; el.classList.add('lunge'); sfx.enemyAtk(); updUnit(el, e.u);
+        return delay(300);
+      }
+      case 'shred': case 'steal': {
+        sfx.shred(); arr.render();
+        const s = slotEl(e.slot); if (s) { const p = at(s); burst(p.x, p.y, { colors: ['#fff', '#ff5d73'], count: 30, kind: 'confetti', speed: 5 }); floatText(p.x, p.y - 40, e.t === 'shred' ? 'SHREDDED!' : 'STOLEN!', '#ff5d73', true); }
+        shake(true); return delay(650);
+      }
+      case 'wrap': toast('<b>Wrapped!</b> Your first card won\'t fire next round.'); return delay(300);
+      case 'phase': banner('CLOSING TIME', 'Your row now fires right-to-left!', '#ff4fd8'); sfx.phase(); scr.classList.add('lightsout'); arr.render(); updUnit(foeEls[e.i], e.u); return delay(1700);
+      case 'jackpot': banner('JACKPOT!', '', '#ffd166'); sfx.jackpot(); { const p = at(arena); burst(p.x, p.y, { count: 60, colors: ['#ffd166', '#fff'], kind: 'confetti', speed: 9 }); } return delay(650);
+      case 'revive': banner('REBORN', 'Phoenix Plume', '#ff8a3d'); updMe(e.u); sfx.reveal('R'); return delay(900);
+      case 'proc': toast(`<b>${e.name}</b>`, 900); return delay(150);
+      case 'buff': { const s = slotEl(e.slot); if (s) { const p = at(s); floatText(p.x, p.y - 44, e.overclock != null ? 'OVERCLOCK →' : e.barbed ? 'Barbed!' : e.round ? `+${e.n} all hits` : `+${e.n} next`, '#ffb03a'); } sfx.buff(); return delay(120); }
+      case 'fizzle': case 'skip': { const s = slotEl(e.slot); if (s) { const p = at(s); floatText(p.x, p.y - 40, e.text, '#a99fcc'); } return delay(200); }
+      case 'stun': { const el = foeEls[e.i]; const p = at(el); floatText(p.x, p.y, 'Bribed!', '#ffd166'); sfx.coin(); return delay(250); }
+      case 'cardsDone': return delay(220);
+      case 'roundEnd': renderIntents(); return;
+      default: return;
+    }
+  }
+
+  async function doRound() {
+    if (playing || B.over) return;
+    playing = true; arr.clear(); bottom.style.pointerEvents = 'none'; fightBtn.disabled = true;
+    const evs = playRound(B);
+    for (const e of evs) await handle(e);
+    playing = false; bottom.style.pointerEvents = ''; fightBtn.disabled = false;
+    if (B.over) return end();
+    if (auto) setTimeout(doRound, 350 / speed);
+  }
+
+  fightBtn.addEventListener('click', () => { sfx.tap(); doRound(); });
+  autoBtn.addEventListener('click', () => { auto = !auto; autoBtn.textContent = 'Auto: ' + (auto ? 'on' : 'off'); sfx.tap(); if (auto) doRound(); });
+
+  function end() {
+    fightBtn.disabled = true; autoBtn.disabled = true;
+    if (B.over === 'win') {
+      sfx.win(); banner('VICTORY', '', '#6dffb0');
+      const p = at(arena); burst(p.x, p.y, { count: 90, colors: ['#ff4fd8', '#ffd166', '#6dffb0', '#4cc9f0'], kind: 'confetti', speed: 9, lift: 3 });
+    } else { sfx.lose(); banner('DEFEATED', '', '#ff5d73'); music(null); }
+    setTimeout(() => ctx.onEnd(B), 1500);
+  }
+}

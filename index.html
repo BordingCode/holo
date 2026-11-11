@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HOLO — rip packs, build combos</title>
+<meta name="description" content="A booster-pack roguelite: rip packs, chase holos, build left-to-right combos and beat the shop.">
+<meta name="theme-color" content="#0c0a18">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="preload" href="assets/fonts/lilita.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.css?v=1">
+</head>
+<body>
+<div id="app"><canvas id="fx"></canvas></div>
+<noscript>HOLO needs JavaScript.</noscript>
+<script>
+  // Never white-screen: show a friendly error with a reset option.
+  window.addEventListener('error', function (e) {
+    if (document.getElementById('crash')) return;
+    var d = document.createElement('div'); d.id = 'crash';
+    d.style.cssText = 'position:fixed;inset:auto 12px 12px 12px;z-index:999;background:#2a1030;color:#fff;border:1px solid #ff4fd8;border-radius:12px;padding:12px;font:14px system-ui';
+    d.innerHTML = 'Something broke: <code>' + String(e.message).replace(/</g, '&lt;') + '</code><br><button onclick="location.reload()" style="margin-top:8px">Reload</button>';
+    document.body.appendChild(d);
+  });
+</script>
+<script type="module" src="js/main.js?v=1"></script>
+<script>
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js');
+</script>
+  <!-- hub-stats visit counter -->
+  <script>(function(){try{var A="holo",K="hubdev",d=localStorage.getItem(K);if(!d){d=(self.crypto&&crypto.randomUUID?crypto.randomUUID():Date.now()+"."+Math.random().toString(36).slice(2));localStorage.setItem(K,d);}var u="https://hub-stats.mathiasjob.workers.dev/hit",b=JSON.stringify({app:A,d:d});if(navigator.sendBeacon){navigator.sendBeacon(u,b);}else{fetch(u,{method:"POST",body:b,keepalive:true,mode:"no-cors"});}}catch(e){}})();</script>
+</body>
+</html>
