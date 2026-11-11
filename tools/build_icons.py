@@ -15,7 +15,7 @@ hound cobra raven hanging-spider dragon-head rock-golem spectre
 black-knight-helm candle-flame fox-head
 two-coins heart-beats poison broken-shield broken-bone thorny-vine biceps flame
 crossed-swords horned-skull shop magnifying-glass campfire card-random card-draw padlock star-swirl swap-bag
-sparkles hourglass""".split()
+sparkles hourglass cuckoo-clock bright-explosion treasure-map open-treasure-chest ticket target-arrows""".split()
 index = {}
 for p in root.rglob('*.svg'):
     index.setdefault(p.stem, p)

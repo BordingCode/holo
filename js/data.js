@@ -120,6 +120,29 @@ card('void', 'blood_pact', 'Blood Pact', 'R', 'sacrificial-dagger', { d: 30, s: 
 card('void', 'echoing_void', 'Echoing Void', 'R', 'magic-portal', { s: 3 }, 'Copy the card to the LEFT twice. Lose {s} HP.', (x, v) => { x.copyLeft(); x.copyLeft(); x.selfDmg(v.s); }, { fixed: ['s'] });
 card('void', 'hollow_king', 'The Hollow King', 'M', 'crowned-skull', {}, 'PASSIVE. Whenever you lose HP, deal 3× that much to a random enemy.', null, { passive: 'hollowKing' });
 
+// ---------- Expansion: multipliers, finishers, growth, cross-set ----------
+// x.amp(m) multiplies ALL damage for the rest of the round (stacks multiplicatively).
+// x.inst.grow is a permanent per-copy counter that survives the whole run.
+card('base', 'amplifier', 'Amplifier', 'U', 'trumpet', {}, 'All damage for the rest of this round ×{x}.', (x, v) => x.amp(v.x), { calc: (c) => ({ x: +(1.25 + 0.25 * (c.star || 1) + (c.ed === 'foil' ? 0.25 : 0) + (c.ed === 'cracked' ? 0.5 : 0)).toFixed(2) }) });
+card('base', 'finale', 'Grand Finale', 'R', 'sparkles', { d: 3 }, 'Deal {d} for each card fired before it this round. Doubled if that\'s 5 or more.', (x, v) => { const n = x.firedBefore; x.hit(v.d * n * (n >= 5 ? 2 : 1)); });
+card('base', 'trophy', 'Trophy Hunter', 'U', 'horned-skull', { d: 5 }, 'Deal {d}{grow}. Each kill it lands adds +2 damage FOREVER.', (x, v) => x.hit(v.d + (x.inst.grow || 0), { trophy: true }), { grows: true });
+card('base', 'crescendo', 'Crescendo', 'M', 'star-swirl', {}, 'PASSIVE. Each card fired adds +15% damage to every card after it this round.', null, { passive: 'crescendo' });
+card('ember', 'flare', 'Flare', 'C', 'flame', { d: 4 }, 'Deal {d}. Triple damage if the target is Burning.', (x, v) => x.hit(x.target && x.target.burn > 0 ? v.d * 3 : v.d));
+card('ember', 'heat_sink', 'Heat Sink', 'U', 'fire-gem', {}, 'Gain Block equal to all Burn on all enemies.', (x) => x.block(Math.round(x.allEnemies().reduce((s, e) => s + e.burn, 0) * x.mult)));
+card('venom', 'venom_gland', 'Venom Gland', 'U', 'snake-tongue', { poi: 1 }, 'Apply {poi} Poison for each card fired before it this round.', (x, v) => x.poison(v.poi * x.firedBefore));
+card('venom', 'contagion', 'Contagion', 'R', 'virus', {}, 'Copy the target\'s Poison onto ALL other enemies.', (x) => { const t = x.target; if (t) for (const e of x.allEnemies()) if (e !== t) x.poison(t.poison, { unit: e }); });
+card('iron', 'iron_will', 'Iron Will', 'C', 'cross-shield', { b: 5, d: 8 }, 'Gain {b} Block. Then if you have 10+ Block, deal {d}.', (x, v) => { x.block(v.b); if (x.B.player.block >= 10) x.hit(v.d); });
+card('iron', 'snowball', 'Snowball', 'U', 'templar-shield', { b: 4 }, 'Gain {b}{grow} Block. Grows +1 FOREVER each time it fires (max +20).', (x, v) => { x.block(v.b + (x.inst.grow || 0)); x.grow(1, 20); }, { grows: true });
+card('iron', 'retaliate', 'Retaliate', 'R', 'spiked-armor', {}, 'Deal damage equal to 3× your Thorns.', (x) => x.hit(Math.round(x.B.player.thorns * 3 * x.mult)));
+card('clock', 'wind_up', 'Wind-Up', 'C', 'pendulum-swing', { d: 3, n: 2 }, 'Deal {d}, +{n} for every round of this fight so far.', (x, v) => x.hit(v.d + v.n * Math.min(8, x.B.round - 1)));
+card('clock', 'cuckoo', 'Cuckoo', 'U', 'cuckoo-clock', {}, 'Fire the card to the RIGHT right now (it still fires again on its turn).', (x) => x.fireRight());
+card('clock', 'chain_reaction', 'Chain Reaction', 'R', 'gears', {}, 'For the rest of this round, every card fired counts as 2 for combo effects.', (x) => x.chain());
+card('gilded', 'tip_jar', 'Tip Jar', 'C', 'coins-pile', { c: 1 }, 'Gain {c} coin for every 2 cards fired before it.', (x, v) => x.coins(v.c * Math.floor(x.firedBefore / 2)));
+card('gilded', 'piggy_bank', 'Piggy Bank', 'U', 'gold-bar', { d: 40 }, 'Gain 1 coin and add 1 to the bank{grow}. At 10, SMASH: deal {d} to ALL and gain 10 coins.', (x, v) => { x.coins(1); x.grow(1, 10); if ((x.inst.grow || 0) >= 10) { x.inst.grow = 0; x.smash(v.d); x.coins(10); } }, { grows: true });
+card('gilded', 'prism', 'Prism', 'R', 'gems', {}, 'All damage this round ×1.25 for each special-edition card in your row.', (x) => { const n = x.countRowInst(c => c.ed && c.ed !== 'normal'); if (n) x.amp(Math.pow(1.25, n)); });
+card('void', 'siphon', 'Siphon', 'U', 'leeching-worm', { d: 9 }, 'Deal {d}. Heal half the damage it dealt.', (x, v) => { const dealt = x.hit(v.d); x.heal(Math.floor(dealt / 2)); });
+card('void', 'event_horizon', 'Event Horizon', 'R', 'magic-portal', { s: 5 }, 'Lose {s} HP. All damage for the rest of this round ×2.', (x, v) => { x.selfDmg(v.s); x.amp(2); }, { fixed: ['s'] });
+
 export const CARDS = Object.fromEntries(C.map(c => [c.id, c]));
 export const CARD_LIST = C;
 
@@ -129,11 +152,11 @@ export const CARD_LIST = C;
 export const ENEMIES = {
   // Act 1 — the dusty bottom shelf
   dust_bunny:  { name: 'Dust Bunny',  icon: 'dust-cloud', hp: 15, color: '#b9a98f', moves: [{ atk: 5 }, { block: 5, atk: 3 }, { atk: 7 }] },
-  paper_plane: { name: 'Paper Plane', icon: 'paper-plane', hp: 9, color: '#e8e2d0', moves: [{ atk: 3, times: 2 }, { atk: 5 }] },
+  paper_plane: { name: 'Paper Plane', icon: 'paper-plane', hp: 9, color: '#e8e2d0', moves: [{ atk: 3, times: 2 }, { atk: 5, aim: 'strike' }] },
   paper_clip:  { name: 'Paper Clip',  icon: 'paper-clip', hp: 20, color: '#aab6c2', moves: [{ block: 8 }, { atk: 7 }, { atk: 4, block: 4 }] },
-  silverfish:  { name: 'Silverfish',  icon: 'centipede', hp: 14, color: '#c5d3e0', moves: [{ poison: 3 }, { atk: 3, times: 2 }, { atk: 5 }] },
-  staple_beast:{ name: 'Staple Beast',icon: 'stapler-heavy-duty', hp: 52, color: '#7f8fa6', elite: true, moves: [{ atk: 4, times: 3 }, { str: 2, block: 8 }, { atk: 12 }] },
-  price_gun:   { name: 'Price Gun',   icon: 'zat-gun', hp: 44, color: '#ff8f6b', elite: true, moves: [{ vuln: 2, atk: 4 }, { atk: 15 }, { atk: 6, times: 2 }] },
+  silverfish:  { name: 'Silverfish',  icon: 'centipede', hp: 14, color: '#c5d3e0', moves: [{ poison: 3 }, { atk: 3, times: 2 }, { atk: 5, aim: 'blind' }] },
+  staple_beast:{ name: 'Staple Beast',icon: 'stapler-heavy-duty', hp: 52, color: '#7f8fa6', elite: true, moves: [{ atk: 4, times: 3 }, { str: 2, block: 8 }, { atk: 12, aim: 'strike', aimAt: 'strong' }] },
+  price_gun:   { name: 'Price Gun',   icon: 'zat-gun', hp: 44, color: '#ff8f6b', elite: true, moves: [{ vuln: 2, atk: 4 }, { atk: 15, aim: 'strike', aimAt: 'strong' }, { atk: 6, times: 2 }] },
   shredder:    { name: 'The Shredder',icon: 'box-cutter', hp: 130, color: '#ff5d5d', boss: true, title: 'Act I Boss',
     rule: 'Every other round it SHREDS your leftmost working card for the rest of the fight. Put something you can spare on the left.',
     moves: [{ atk: 11 }, { special: 'shred', atk: 6 }, { block: 10, atk: 7 }, { special: 'shred', atk: 6 }] },
@@ -141,30 +164,30 @@ export const ENEMIES = {
   // Act 2 — the display case
   sleeve_slime:{ name: 'Sleeve Slime',icon: 'slime', hp: 26, color: '#7fe0c2', split: 'slimelet', moves: [{ atk: 7 }, { poison: 4 }, { atk: 5, block: 5 }] },
   slimelet:    { name: 'Slimelet',    icon: 'slime', hp: 11, color: '#a9f0d9', small: true, moves: [{ atk: 4 }, { poison: 2 }] },
-  tape_golem:  { name: 'Tape Golem',  icon: 'metal-golem-head', hp: 38, color: '#d6b98a', moves: [{ block: 12 }, { atk: 11 }, { atk: 6, block: 6 }] },
-  dust_moth:   { name: 'Dust Moth',   icon: 'butterfly', hp: 14, color: '#d9c7f2', moves: [{ atk: 4 }, { weak: 1, atk: 2 }, { atk: 3, times: 2 }] },
+  tape_golem:  { name: 'Tape Golem',  icon: 'metal-golem-head', hp: 38, color: '#d6b98a', moves: [{ block: 12 }, { atk: 11, aim: 'strike' }, { atk: 6, block: 6 }] },
+  dust_moth:   { name: 'Dust Moth',   icon: 'butterfly', hp: 14, color: '#d9c7f2', moves: [{ atk: 4 }, { atk: 3, aim: 'blind' }, { atk: 3, times: 2 }] },
   bootleg:     { name: 'Bootleg',     icon: 'two-shadows', hp: 34, color: '#8c8aa8',
     rule: 'COPY: hits you back as hard as the biggest single hit you dealt this round (3–30).', moves: [{ special: 'copy' }, { atk: 6 }, { special: 'copy' }, { block: 8 }] },
   shrink_wraith:{ name: 'Shrink Wraith', icon: 'floating-ghost', hp: 28, color: '#cfe8ff',
     rule: 'WRAP: your first card won\'t fire next round.', moves: [{ special: 'wrap', atk: 4 }, { atk: 10 }, { atk: 6 }] },
   mimic:       { name: 'Booster Mimic', icon: 'mimic-chest', hp: 88, color: '#ffb347', elite: true, moves: [{ block: 30 }, { atk: 20 }, { atk: 7, times: 3 }, { str: 3, atk: 8 }] },
-  ink_kraken:  { name: 'Ink Kraken',  icon: 'octopus', hp: 78, color: '#6f7cff', elite: true, moves: [{ weak: 2, atk: 7 }, { atk: 3, times: 5 }, { block: 12, atk: 9 }] },
+  ink_kraken:  { name: 'Ink Kraken',  icon: 'octopus', hp: 78, color: '#6f7cff', elite: true, moves: [{ atk: 7, aim: 'blind', aimAt: 'strong' }, { atk: 3, times: 5 }, { weak: 2, block: 12, atk: 6 }] },
   collector:   { name: 'The Collector', icon: 'old-king', hp: 240, color: '#ffd166', boss: true, title: 'Act II Boss',
     rule: 'Every 3rd move it STEALS your rarest working card into its binder. Beat it to get them back.',
     moves: [{ atk: 12 }, { atk: 4, times: 4 }, { special: 'steal', block: 12 }, { str: 2, atk: 9 }, { atk: 18 }, { special: 'steal', block: 12 }] },
 
   // Act 3 — the back room
-  holo_hound:  { name: 'Holo Hound',  icon: 'hound', hp: 44, color: '#7ff0ff', moves: [{ atk: 6, times: 2 }, { str: 2, block: 8 }, { atk: 14 }] },
+  holo_hound:  { name: 'Holo Hound',  icon: 'hound', hp: 44, color: '#7ff0ff', moves: [{ atk: 6, times: 2 }, { str: 2, block: 8 }, { atk: 14, aim: 'strike', aimAt: 'strong' }] },
   foil_serpent:{ name: 'Foil Serpent',icon: 'cobra', hp: 56, color: '#b6ff6b', moves: [{ poison: 6 }, { atk: 15 }, { atk: 6, poison: 3 }] },
   raven:       { name: 'Shoplift Raven', icon: 'raven', hp: 34, color: '#9aa0b8',
     rule: 'PILFER: steals 4 of your coins.', moves: [{ special: 'pilfer', atk: 6 }, { atk: 10 }, { atk: 5, times: 2 }] },
-  web_spinner: { name: 'Web Spinner', icon: 'hanging-spider', hp: 44, color: '#c9a0ff', moves: [{ weak: 2, atk: 5 }, { atk: 6, times: 3 }, { block: 10, atk: 6 }] },
-  chase_dragon:{ name: 'Chase Dragon',icon: 'dragon-head', hp: 150, color: '#ff6b9d', elite: true, moves: [{ burn: 6, atk: 8 }, { atk: 26 }, { block: 20, str: 3 }] },
+  web_spinner: { name: 'Web Spinner', icon: 'hanging-spider', hp: 44, color: '#c9a0ff', moves: [{ weak: 2, atk: 5 }, { atk: 6, times: 3 }, { atk: 8, aim: 'blind', aimAt: 'strong' }] },
+  chase_dragon:{ name: 'Chase Dragon',icon: 'dragon-head', hp: 150, color: '#ff6b9d', elite: true, moves: [{ burn: 6, atk: 8 }, { atk: 26, aim: 'strike', aimAt: 'strong' }, { block: 20, str: 3 }] },
   grading_golem:{ name: 'Grading Golem', icon: 'rock-golem', hp: 170, color: '#c2b280', elite: true,
     rule: 'Grows stronger every round.', moves: [{ str: 3, atk: 10 }, { str: 3, block: 15 }, { str: 3, atk: 6, times: 2 }] },
   proprietor:  { name: 'The Proprietor', icon: 'spectre', hp: 460, color: '#ff4fd8', boss: true, title: 'Final Boss',
     rule: 'At half HP: CLOSING TIME. The lights go out and your row fires RIGHT-TO-LEFT.',
-    moves: [{ atk: 16 }, { burn: 5, atk: 8 }, { block: 20, str: 2 }, { atk: 6, times: 4 }, { poison: 6, atk: 10 }] },
+    moves: [{ atk: 16 }, { burn: 5, atk: 8 }, { block: 20, str: 2 }, { atk: 12, aim: 'blind', aimAt: 'strong' }, { atk: 6, times: 4 }, { poison: 6, atk: 10, aim: 'strike' }] },
 };
 
 export const ENCOUNTERS = {
@@ -216,3 +239,97 @@ export const PACKS = {
     blurb: '3 cards, every one Rare or better. Better editions.' },
 };
 export const ED_ODDS = { normal: 80, foil: 8, holo: 4, gilded: 4, cracked: 2.5, misprint: 1.5 };
+
+// ---------------------------------------------------------------------------
+// Set bonuses (count of a set's cards in your row; Starter cards don't count)
+// ---------------------------------------------------------------------------
+export const SET_BONUS = {
+  ember:  [[2, 'Burn you apply is +1.'], [4, 'Burn ticks TWICE each round.'], [6, 'Burn never fades.']],
+  venom:  [[2, 'Poison you apply is +1.'], [4, 'Your hits on Poisoned enemies deal +3.'], [6, 'Poison ticks TWICE each round.']],
+  iron:   [[2, 'Start every round with 4 Block.'], [4, 'Keep half your Block between rounds.'], [6, 'Gain 3 Thorns every round.']],
+  clock:  [[2, 'Your FIRST card fires twice.'], [4, 'Your LAST card fires twice too.'], [6, 'Every 3rd round your whole row fires twice.']],
+  gilded: [[2, 'Gain 2 coins for every enemy defeated.'], [4, 'Hits deal +1 per 10 coins you hold (max +6).'], [6, 'Gain 4 coins every round.']],
+  void:   [[2, 'HP you lose to your own cards is 1 less.'], [4, 'Losing HP charges your next hit with +6.'], [6, 'Void cards fire twice.']],
+};
+
+// ---------------------------------------------------------------------------
+// Tactics: one-shot tricks you hold (max 3) and play between rounds.
+// ---------------------------------------------------------------------------
+export const TACTICS = {
+  bubble_wrap: { name: 'Bubble Wrap', icon: 'templar-shield', r: 'C', text: 'Gain 12 Block now.' },
+  first_aid:   { name: 'First Aid', icon: 'bandage-roll', r: 'C', text: 'Heal 12 HP.' },
+  lucky_coin:  { name: 'Lucky Coin', icon: 'two-coins', r: 'C', text: 'Gain 10 coins.' },
+  price_drop:  { name: 'Price Drop', icon: 'price-tag', r: 'C', text: 'Apply 3 Vulnerable to ALL enemies.' },
+  overcharge:  { name: 'Overcharge', icon: 'lightning-arc', r: 'U', text: 'This round, all your damage ×1.5.' },
+  spotlight:   { name: 'Spotlight', icon: 'all-seeing-eye', r: 'U', text: 'This round, your FIRST damaging card deals triple.' },
+  smoke_bomb:  { name: 'Smoke Bomb', icon: 'dust-cloud', r: 'U', text: 'The targeted enemy skips its next action.' },
+  accelerant:  { name: 'Accelerant', icon: 'burning-embers', r: 'U', text: 'Double all Burn and Poison on every enemy.' },
+  hot_glue:    { name: 'Hot Glue', icon: 'paper-clip', r: 'U', text: 'Un-jam every slot and repair one shredded or stolen card.' },
+  reshuffle:   { name: 'Reshuffle', icon: 'card-random', r: 'U', text: 'Every enemy skips ahead to its NEXT move.' },
+  echo:        { name: 'Echo', icon: 'anticlockwise-rotation', r: 'R', text: 'This round, your first card fires 3 times.' },
+  encore:      { name: 'Encore', icon: 'sparkles', r: 'R', text: 'This round, your whole row fires twice.' },
+};
+export const TACTIC_PRICE = { C: 6, U: 9, R: 14 };
+
+// ---------------------------------------------------------------------------
+// Relics: permanent run-long rule changes (boss rewards & treasure chests).
+// ---------------------------------------------------------------------------
+export const RELICS = {
+  seventh_sleeve: { name: 'Seventh Sleeve', icon: 'card-draw', text: 'Your row gets a 7th slot.' },
+  fat_packs:      { name: 'Fat Packs', icon: 'shopping-bag', text: 'Every pack contains +1 card.' },
+  opening_salvo:  { name: 'Opening Salvo', icon: 'crossed-swords', text: 'In round 1 of every fight, your row fires twice.' },
+  thick_sleeves:  { name: 'Thick Sleeves', icon: 'heart-beats', text: '+15 max HP (and heal 15).' },
+  rainbow_ink:    { name: 'Rainbow Ink', icon: 'sparkles', text: 'Special editions are 3× as common in packs.' },
+  coupon_book:    { name: 'Coupon Book', icon: 'price-tag', text: 'Everything in shops costs 25% less.' },
+  golden_ticket:  { name: 'Golden Ticket', icon: 'star-swirl', text: 'The Mythic meter fills twice as fast.' },
+  spiked_binder:  { name: 'Spiked Binder', icon: 'thorny-vine', text: 'Start every fight with 5 Thorns.' },
+  overflow:       { name: 'Overflow', icon: 'bright-explosion', text: 'Overkill damage spills onto the next enemy.' },
+  tactical_vest:  { name: 'Tactical Vest', icon: 'swap-bag', text: 'Hold 5 Tactics. Gain 2 random Tactics now.' },
+  lucky_pull:     { name: 'Lucky Pull', icon: 'clover', text: 'The last card of every pack is Uncommon or better.' },
+  bandolier:      { name: 'Bandolier', icon: 'bandage-roll', text: 'Heal 6 HP after every fight.' },
+  combo_core:     { name: 'Combo Core', icon: 'cog', text: 'Every round starts with 2 combo already counted.' },
+  ember_core:     { name: 'Ember Core', icon: 'flame', text: 'Counts as +1 Ember card for set bonuses.', core: 'ember' },
+  venom_core:     { name: 'Venom Core', icon: 'poison', text: 'Counts as +1 Venom card for set bonuses.', core: 'venom' },
+  iron_core:      { name: 'Iron Core', icon: 'templar-shield', text: 'Counts as +1 Iron card for set bonuses.', core: 'iron' },
+  clock_core:     { name: 'Clock Core', icon: 'gears', text: 'Counts as +1 Clockwork card for set bonuses.', core: 'clock' },
+  gilded_core:    { name: 'Gilded Core', icon: 'two-coins', text: 'Counts as +1 Gilded card for set bonuses.', core: 'gilded' },
+  void_core:      { name: 'Void Core', icon: 'portal', text: 'Counts as +1 Void card for set bonuses.', core: 'void' },
+};
+
+// Enemy editions mirror card editions.
+export const ENEMY_EDITIONS = {
+  foil:    { name: 'Foil', text: '+40% HP.', hp: 1.4, dmg: 1 },
+  holo:    { name: 'Holo', text: 'Every attack hits twice.', hp: 1, dmg: 1 },
+  gilded:  { name: 'Gilded', text: 'Drops 12 coins when defeated.', hp: 1.1, dmg: 1 },
+  cracked: { name: 'Cracked', text: 'Hits 50% harder, but has 40% less HP.', hp: 0.6, dmg: 1.5 },
+};
+
+// ---------------------------------------------------------------------------
+// Challenges (achievements) → unlock card backs.
+// ---------------------------------------------------------------------------
+export const CARD_BACKS = {
+  classic: { name: 'Classic', css: 'radial-gradient(circle at 50% 50%, #3a2a7a, #120c28 70%)' },
+  ember:   { name: 'Cinder', css: 'radial-gradient(circle at 50% 60%, #ff7a3d, #5a1004 75%)' },
+  venom:   { name: 'Toxic', css: 'radial-gradient(circle at 50% 40%, #9be15d, #0f3a08 75%)' },
+  ocean:   { name: 'Deep Sea', css: 'linear-gradient(160deg, #0b4f6c, #01161e)' },
+  gold:    { name: 'Gilt', css: 'linear-gradient(135deg, #fff1b0, #e8a317 40%, #7a4a00)' },
+  neon:    { name: 'Neon', css: 'conic-gradient(from 45deg, #ff4fd8, #4cc9f0, #6dffb0, #ffd166, #ff4fd8)' },
+  void:    { name: 'Abyss', css: 'radial-gradient(circle at 50% 50%, #b07cff 0, #3a1470 30%, #05010d 75%)' },
+  mint:    { name: 'Gem Mint', css: 'linear-gradient(135deg, #e8fff4, #6dffb0 50%, #0d6b46)' },
+};
+export const ACHIEVEMENTS = [
+  { id: 'first_blood', name: 'First Blood', text: 'Win a fight.', back: null },
+  { id: 'combo8', name: 'Chain Gang', text: 'Fire 8 or more cards in a single round.', back: 'neon' },
+  { id: 'hit100', name: 'One-Punch', text: 'Deal 100+ damage with a single hit.', back: 'ember' },
+  { id: 'hit500', name: 'Overkill', text: 'Deal 500+ damage in a single round.', back: 'void' },
+  { id: 'set6', name: 'Full Set', text: 'Switch on a 6-card set bonus.', back: 'venom' },
+  { id: 'holo3', name: 'Shiny Row', text: 'Have 3 Holo cards in your row at once.', back: 'ocean' },
+  { id: 'gem10', name: 'Gem Mint', text: 'Get a 10 from the Grader.', back: 'mint' },
+  { id: 'rich', name: 'Hoarder', text: 'Hold 150 coins at once.', back: 'gold' },
+  { id: 'shredder', name: 'Shelf Clearer', text: 'Defeat The Shredder.', back: null },
+  { id: 'collector', name: 'Not For Sale', text: 'Defeat The Collector.', back: null },
+  { id: 'win', name: 'Closing Time', text: 'Win a run.', back: null },
+  { id: 'mythic5', name: 'Mythic Hunter', text: 'Pull 5 Mythic cards (all time).', back: null },
+  { id: 'heat4', name: 'Feel the Heat', text: 'Win a run at Heat 4 or higher.', back: null },
+  { id: 'relics5', name: 'Relic Hoard', text: 'Hold 5 relics in one run.', back: null },
+];
