@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js';
-import { makeRng, hashStr } from './rng.js';
-import { createBattle, ROW_SIZE } from './engine.js';
+import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=4';
+import { makeRng, hashStr } from './rng.js?v=4';
+import { createBattle, ROW_SIZE } from './engine.js?v=4';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;
@@ -274,12 +274,75 @@ export function openPack(run, spec) {
 
 export function score(c) { return RARITY_RANK[CARDS[c.id].r] * 10 + ED_RANK[c.ed] + (c.star - 1) * 4; }
 
-// Merge a pulled duplicate into an owned card. Returns description.
-export function mergeInto(run, owned, pulled) {
-  if (owned.star >= 3) { const v = sellValue(run, pulled); run.coins += v; return { coins: v }; }
-  owned.star++;
-  if (ED_RANK[pulled.ed] > ED_RANK[owned.ed]) { owned.ed = pulled.ed; if (pulled.mp != null) owned.mp = pulled.mp; if (pulled.cracks) owned.cracks = pulled.cracks; }
-  return { star: owned.star };
+// ---- merging -------------------------------------------------------------------
+// Merging two copies of the same card: the TARGET survives, the DONOR is consumed.
+// Rules (shared by in-run merges and the collection):
+//  - stars: max(star) + 1, capped at 3
+//  - normal + special edition → the special edition is kept automatically
+//  - two different special editions → the player chooses which edition to keep
+//  - Cracked is never forced: any merge involving Cracked offers the non-cracked edition
+//    as the default; choosing Cracked gives a fresh 3 fights (cracks = 3)
+//  - a maxed ★3 card can still take a donor's edition ("apply edition")
+//  - nothing gained (already ★3, same edition) → the donor is sold instead
+export const MAX_STAR = 3;
+
+// The possible results of merging donor into target. Returns
+// { star, options: [{ed, mp?, cracks?}], gainsStar, useful }.
+// options[0] is the default (never Cracked if there is an alternative).
+export function mergeOutcome(target, donor) {
+  const star = Math.min(MAX_STAR, Math.max(target.star || 1, donor.star || 1) + 1);
+  const gainsStar = star > (target.star || 1);
+  const a = target.ed || 'normal', b = donor.ed || 'normal';
+  const mpOf = ed => (a === ed && target.mp != null) ? target.mp : (b === ed && donor.mp != null ? donor.mp : target.mp ?? donor.mp);
+  const opt = ed => {
+    const o = { ed };
+    if (ed === 'misprint') o.mp = mpOf('misprint');
+    if (ed === 'cracked') o.cracks = 3;
+    return o;
+  };
+  let eds;
+  if (a === b) eds = [a];
+  else if (a === 'cracked' || b === 'cracked') eds = [a === 'cracked' ? b : a, 'cracked'];
+  else if (a === 'normal') eds = [b];
+  else if (b === 'normal') eds = [a];
+  else eds = ED_RANK[a] >= ED_RANK[b] ? [a, b] : [b, a];
+  const options = eds.map(opt);
+  // a cracked copy merged with a cracked copy still gets patched up to 3 fights
+  const changesEd = options.some(o => o.ed !== a) || (a === 'cracked' && (target.cracks ?? 3) < 3);
+  return { star, options, gainsStar, useful: gainsStar || changesEd };
+}
+
+// Apply a merge. choice = index into mergeOutcome().options (default 0).
+// Returns {star, ed} or {coins} when nothing was gained and the donor was sold.
+export function applyMerge(run, target, donor, choice = 0) {
+  const out = mergeOutcome(target, donor);
+  if (!out.useful) { const v = sellValue(run, donor); run.coins += v; return { coins: v }; }
+  const o = out.options[Math.min(choice, out.options.length - 1)];
+  target.star = out.star;
+  target.ed = o.ed;
+  if (o.ed === 'misprint') target.mp = o.mp ?? 0; else delete target.mp;
+  if (o.ed === 'cracked') target.cracks = 3; else delete target.cracks;
+  if ((donor.grow || 0) > (target.grow || 0)) target.grow = donor.grow; // growing cards keep the bigger growth
+  return { star: target.star, ed: target.ed };
+}
+
+// Back-compat wrapper (default choice).
+export function mergeInto(run, owned, pulled, choice = 0) { return applyMerge(run, owned, pulled, choice); }
+
+// All owned copies of a card id, best merge targets first (not maxed, highest star, row before bench).
+export function mergeTargets(run, id, exclude) {
+  const out = [];
+  run.row.forEach((c, i) => { if (c && c.id === id && c !== exclude) out.push({ c, where: 'row', idx: i }); });
+  run.bench.forEach((c, i) => { if (c && c.id === id && c !== exclude) out.push({ c, where: 'bench', idx: i }); });
+  return out.sort((x, y) => ((x.c.star >= MAX_STAR) - (y.c.star >= MAX_STAR)) || (y.c.star - x.c.star));
+}
+
+// Short human label for a merge result, e.g. "★2 Holo" / "★3 (stays Foil)".
+export function mergeLabel(target, o, star) {
+  const name = ed => (ed === 'normal' ? 'plain' : ed[0].toUpperCase() + ed.slice(1));
+  const st = '★' + star;
+  if (o.ed === (target.ed || 'normal')) return target.ed && target.ed !== 'normal' ? `${st} (stays ${name(o.ed)})` : st;
+  return `${st} ${name(o.ed)}`;
 }
 
 // ---- shop -----------------------------------------------------------------------

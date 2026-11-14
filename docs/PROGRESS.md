@@ -10,7 +10,7 @@ He asked to keep improving until session usage runs out, and to use Fable (model
   env NEWBIE=1 / DUMB=1 / SETS=a,b / EXCLUDE=id). Target: smart bot ~65% win at heat 0, ~25% at heat 8.
 - Local browser test: no-cache server (python http.server caches ES modules!) — see scratch nocache.py pattern:
   SimpleHTTPRequestHandler + `Cache-Control: no-store`, port 8813. Playwright at 390x844.
-- Deploy: bump `?v=` in index.html AND `CACHE` in sw.js, commit, push; GitHub Pages takes ~1–5 min.
+- Deploy: `python3 tools/bump.py` (versions index.html, EVERY module import, sw.js), commit, push; GitHub Pages takes ~1–5 min.
 - Debug: `window.__holo` (give, coins, pack, fight, node, goto).
 
 ## Done
@@ -20,8 +20,8 @@ He asked to keep improving until session usage runs out, and to use Fable (model
 ## In progress: "The Back Room" evolution (approved 2026-11-14, Mathias said "go")
 Direction: collection matters between runs. Decisions: die → brought Deck Box cards ALL shredded;
 grading = loupe minigame; collection cards may make runs easier but Deck Box size is capped (smaller at high Heat).
-- [ ] Stage 0: commit pending balance pass (enemy HP/dmg up).
-- [ ] Stage 1: merge rework — normal+special keeps special; two specials → player picks; Cracked never forced
+- [x] Stage 0: commit pending balance pass (enemy HP/dmg up).
+- [x] Stage 1: merge rework — normal+special keeps special; two specials → player picks; Cracked never forced
       (fresh copy resets cracks to 3); maxed ★3 can "Apply edition"; choose target copy; merge owned↔owned;
       buttons preview result; exhaustive edition-combo tests. Same rules reused for the collection.
 - [ ] Stage 2: persistent collection (take home 3 on win / 1 on death) + Deck Box ante; meta save v2 migration.

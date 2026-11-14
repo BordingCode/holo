@@ -1,10 +1,10 @@
 // The pack-opening ritual: tear → reveal (charged rares) → place your pulls.
-import { CARDS, RARITY, EDITIONS, PACKS, RARITY_RANK } from './data.js';
-import { h, $, icon, cardEl, attachTilt, idleShimmer, enableGyro, packColors, packName, packIcon, arranger, toast, detailSheet, pillCoins } from './ui.js';
-import { sfx } from './audio.js';
-import { burst, centerOf, shake, banner, RARITY_FX } from './fx.js';
-import { recordPull, saveMeta, meta } from './meta.js';
-import { sellValue, mergeInto, allOwned } from './run.js';
+import { CARDS, RARITY, EDITIONS, PACKS, RARITY_RANK } from './data.js?v=4';
+import { h, $, icon, cardEl, mergeActions, attachTilt, idleShimmer, enableGyro, packColors, packName, packIcon, arranger, toast, detailSheet, pillCoins } from './ui.js?v=4';
+import { sfx } from './audio.js?v=4';
+import { burst, centerOf, shake, banner, RARITY_FX } from './fx.js?v=4';
+import { recordPull, saveMeta, meta } from './meta.js?v=4';
+import { sellValue, allOwned, mergeTargets, mergeOutcome } from './run.js?v=4';
 
 // result = {type, set, cards, tell, mustKeep}; ctx = {run, app, save, done()}
 export function packScreen(ctx, result, { skipTear = false } = {}) {
@@ -127,10 +127,10 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
           else if (def.r === 'R') shake();
           const rec = record(cur);
           pulls.push({ c, rec });
-          const owned = allOwned(run).some(o => o.id === c.id);
+          const owned = mergeTargets(run, c.id).some(t => mergeOutcome(t.c, c).useful);
           label.innerHTML = `<div class="rar" style="color:${RARITY[def.r].color}">${RARITY[def.r].name.toUpperCase()}</div>
             ${EDITIONS[c.ed].name ? `<div class="edn">${EDITIONS[c.ed].name} edition</div>` : ''}
-            ${rec.isNew ? '<span class="new">NEW FOR YOUR BINDER</span>' : owned ? '<span class="new dupe">DUPLICATE — MERGE FOR ★</span>' : ''}`;
+            ${rec.isNew ? '<span class="new">NEW FOR YOUR BINDER</span>' : owned ? '<span class="new dupe">DUPLICATE — CAN MERGE</span>' : ''}`;
           const card = rc.querySelector('.card');
           if (c.ed !== 'normal' || def.r === 'M') idleShimmer(card, 1.4);
           busy = false; flipped = true;
@@ -178,6 +178,7 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
     const doneBtn = h('button', { class: 'btn gold', style: { flex: '1' } }, 'Done');
     const ctrl = h('div', { class: 'battle-controls' }, doneBtn);
     const arr = arranger(run, {
+      merge: true,
       external: () => selPull,
       hint: '',
       onPlaceExternal: (where, i) => place(where, i),
@@ -191,10 +192,10 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
     function refresh() {
       tray.innerHTML = '';
       left.forEach((p, k) => {
-        const owned = allOwned(run).find(o => o.id === p.c.id && !p.placed);
+        const owned = !p.placed && mergeTargets(run, p.c.id).some(t => mergeOutcome(t.c, p.c).useful);
         const isNew = (meta.binder[p.c.id] || {}).n === 1;
         const el = h('div', { class: 'pull' + (selPull === p ? ' sel' : '') + (p.placed ? ' placed' : '') }, cardEl(p.c));
-        if (!p.placed && owned) el.append(h('span', { class: 'tag dupe' }, 'MERGE ★'));
+        if (!p.placed && owned) el.append(h('span', { class: 'tag dupe' }, 'MERGE'));
         else if (!p.placed && isNew) el.append(h('span', { class: 'tag new' }, 'NEW'));
         el.addEventListener('click', () => { selPull = selPull === p ? null : p; sfx.tap(); arr.clear(); refresh(); });
         tray.append(el);
@@ -202,12 +203,12 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
       arr.detail.innerHTML = '';
       if (selPull) {
         const c = selPull.c;
-        const owned = allOwned(run).find(o => o.id === c.id);
-        const acts = [];
-        if (owned) acts.push({ label: owned.star >= 3 ? `Merge (max ★ → +${sellValue(run, c)})` : `Merge → ★${owned.star + 1}`, cls: 'gold small', fn: () => merge(selPull, owned) });
+        const p = selPull;
+        const acts = mergeActions(run, c, () => { p.placed = true; selPull = null; ctx.save(); refresh(); });
+        const owned = acts.some(a => !a.disabled);
         acts.push({ label: `Sell +${sellValue(run, c)}`, cls: 'ghost small', fn: () => sellPull(selPull) });
         arr.detail.append(detailSheet(c, acts));
-        help.innerHTML = owned ? 'Tap <b>Merge</b> to level up your copy, or tap a slot to place it' : 'Tap a slot below to place it. A card already there gets <b>sold</b>.';
+        help.innerHTML = owned ? 'Tap <b>Merge</b> to level up your copy (you choose if editions clash), or tap a slot to place it' : 'Tap a slot below to place it. A card already there gets <b>sold</b>.';
       } else {
         const remaining = left.filter(p => !p.placed);
         help.innerHTML = remaining.length ? 'Tap a pull to keep it. Unkept pulls are <b>sold</b> when you tap Done.' : 'All placed. Arrange your row, then tap Done.';
@@ -227,13 +228,6 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
       ctx.save(); refresh();
       const s2 = arr.el.querySelector(`.slot[data-where="${where}"][data-idx="${i}"]`);
       if (s2) { const c = centerOf(s2); burst(c.x, c.y, { count: 14, colors: RARITY_FX[CARDS[p.c.id].r], speed: 3 }); }
-    }
-    function merge(p, owned) {
-      const r = mergeInto(run, owned, p.c);
-      p.placed = true; selPull = null;
-      if (r.star) { sfx.reveal('U'); toast(`<b>${CARDS[owned.id].name}</b> is now ★${r.star}!`); }
-      else { sfx.coin(); toast(`Already max — sold for ${r.coins}`); }
-      ctx.save(); refresh();
     }
     function sellPull(p) { run.coins += sellValue(run, p.c); p.placed = true; selPull = null; sfx.coin(); ctx.save(); refresh(); }
     doneBtn.addEventListener('click', () => {

@@ -1,13 +1,13 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js';
-import * as R from './run.js';
-import { hashStr } from './rng.js';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js';
-import { packScreen } from './pack.js';
-import { battleScreen } from './battle.js';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=4';
+import * as R from './run.js?v=4';
+import { hashStr } from './rng.js?v=4';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=4';
+import { packScreen } from './pack.js?v=4';
+import { battleScreen } from './battle.js?v=4';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=4';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=4';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=4';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -251,7 +251,7 @@ function mapScreen(fresh) {
   scrollEl.append(map);
   const legend = h('div', { class: 'legend', html: Object.entries(NODE).filter(([k]) => k !== 'boss').map(([k, n]) => `<span style="color:${n.color}">${icon(n.icon).replace('<svg', `<svg style="fill:${n.color}"`)}${n.label}</span>`).join('') });
   const banner2 = h('div', { class: 'actbanner' }, h('div', { class: 'sub', style: { 'font-weight': 900, 'letter-spacing': '.2em' } }, `ACT ${run.act} · FLOOR ${run.floor}${run.daily ? ' · DAILY' : ''}${run.heat ? ' · HEAT ' + run.heat : ''}`), h('div', { class: 'h2' }, ACT_NAME[run.act]));
-  const arr = arranger(run, { onChange: save });
+  const arr = arranger(run, { onChange: save, merge: true });
   scr.append(topbarRun(), banner2, legend, scrollEl, arr.detail, arr.el);
   mount(scr);
   // scroll so the next choices are visible
@@ -443,6 +443,7 @@ function shopScreen() {
     body.append(h('div', { class: 'services' }, mend, pol));
   };
   arr = arranger(run, {
+    merge: true,
     onChange: () => { save(); shopScreen(); },
     actions: (c, where, idx) => {
       const a = [{ label: `Sell +${R.sellValue(run, c)}`, cls: 'ghost small', fn: () => arr.sell(where, idx) }];
@@ -588,7 +589,7 @@ function eventScreen() {
       arrActions = (c) => c.ed === 'cracked' ? [{ label: 'Repair cracks', cls: 'gold small', fn: () => { c.ed = 'normal'; delete c.cracks; sfx.heal(); done(`${CARDS[c.id].name} repaired`); } }] : [];
     }
   }
-  const arr = arranger(run, { onChange: save, actions: arrActions || ((c, w, i) => [{ label: `Sell +${R.sellValue(run, c)}`, cls: 'ghost small', fn: () => arr.sell(w, i) }]) });
+  const arr = arranger(run, { onChange: save, merge: !arrActions, actions: arrActions || ((c, w, i) => [{ label: `Sell +${R.sellValue(run, c)}`, cls: 'ghost small', fn: () => arr.sell(w, i) }]) });
   scr.append(topbarRun(), h('div', { class: 'scroll', style: { flex: '1' } }, scene, choices, helpTxt ? h('div', { class: 'helpline', html: helpTxt }) : null), arr.detail, arr.el);
   mount(scr);
 }
@@ -711,6 +712,8 @@ window.__holo = {
   give(id, ed = 'normal', star = 1) { const c = R.newCard(run, id, ed, star); const i = run.bench.indexOf(null); if (i >= 0) run.bench[i] = c; else run.row[run.row.indexOf(null)] = c; save(); resume(); return c; },
   coins(n) { run.coins += n; save(); resume(); },
   pack(type = 'booster', set) { openPackFlow(R.openPack(run, { type, set }), 'map'); },
+  // debug: open a booster containing exactly these pulls, e.g. pull([['jab','holo'],['jab','cracked']])
+  pull(list) { const res = R.openPack(run, { type: 'booster' }); res.cards = list.map(([id, ed = 'normal', star = 1]) => R.newCard(run, id, ed, star)); openPackFlow(res, 'map'); },
   fight(kind = 'fight') { R.startBattle(run, kind); save(); battleFlow(); },
   goto(fn) { ({ title, binder, heroSelect, mapScreen, endScreen, resume })[fn](); },
   node(node, ev) { run.pending = { type: 'node', node, ev: ev || 'trader', shop: R.makeShop(run), line: 'Packs fresh from the back. Mostly.' }; save(); nodeScreen(); },

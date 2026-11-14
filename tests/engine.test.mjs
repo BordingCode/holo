@@ -83,6 +83,40 @@ import { useTactic, setCounts } from '../js/engine.js';
 { const B = createBattle({ rng: makeRng(1), coins: 0, hp: 50, maxHp: 50, row: [card('jab'), null, null, null, null, null], enemies: ['tape_golem'], eds: ['foil'] }); ok(B.enemies[0].maxHp === 53, 'foil enemy +40% hp'); }
 { const B = battle([card('jab')], ['tape_golem'], { relics: ['opening_salvo'] }); playRound(B); ok(dealt(B) === 8, 'opening salvo round 1'); }
 
+
+// ---- merge rules: every edition pair ----
+{
+  const EDS = ['normal', 'foil', 'holo', 'gilded', 'cracked', 'misprint'];
+  const run = R.newRun({ hero: 'kip' });
+  const mk = (ed, star = 1) => { const c = R.newCard(run, 'jab', ed, star); if (ed === 'misprint') c.mp = 2; return c; };
+  for (const a of EDS) for (const b of EDS) {
+    const out = R.mergeOutcome(mk(a), mk(b));
+    const eds = out.options.map(o => o.ed);
+    const tag = `${a}+${b}`;
+    ok(out.star === 2 && out.gainsStar, tag + ': ★1+★1 → ★2');
+    ok(eds.includes(a) || a === 'normal' && b !== 'cracked', tag + ': target edition offered unless plain');
+    if (a !== b && a !== 'normal' && b !== 'normal') ok(eds.length === 2, tag + ': two specials → choice');
+    if ((a === 'normal') !== (b === 'normal') && a !== 'cracked' && b !== 'cracked') ok(eds.length === 1 && eds[0] !== 'normal', tag + ': special kept automatically');
+    if (a !== b) ok(eds[0] !== 'cracked', tag + ': cracked never the default');
+    // every option applies cleanly
+    out.options.forEach((o, i) => { const t = mk(a), d = mk(b); R.applyMerge(run, t, d, i);
+      ok(t.ed === o.ed && t.star === 2, tag + ' opt' + i + ' applied');
+      ok((t.ed === 'cracked') === (t.cracks === 3), tag + ' opt' + i + ' cracks consistent');
+      ok((t.ed === 'misprint') === (t.mp != null), tag + ' opt' + i + ' misprint bonus consistent'); });
+  }
+}
+{ const run = R.newRun({ hero: 'kip' });
+  const t = R.newCard(run, 'jab', 'normal', 3), d = R.newCard(run, 'jab', 'holo');
+  const out = R.mergeOutcome(t, d); ok(out.useful && !out.gainsStar && out.options[0].ed === 'holo', 'maxed ★3 can take a holo edition');
+  R.applyMerge(run, t, d); ok(t.ed === 'holo' && t.star === 3, 'apply edition onto ★3');
+  const c0 = run.coins; const r = R.applyMerge(run, t, R.newCard(run, 'jab', 'holo')); ok(r.coins > 0 && run.coins > c0 && t.star === 3, 'nothing to gain → donor sold');
+  const cr = R.newCard(run, 'jab', 'cracked', 3); cr.cracks = 1; const o2 = R.mergeOutcome(cr, R.newCard(run, 'jab', 'cracked'));
+  ok(o2.useful, 'worn cracked ★3 + cracked copy patches it'); R.applyMerge(run, cr, R.newCard(run, 'jab', 'cracked')); ok(cr.cracks === 3, 'cracks reset to 3');
+  ok(R.mergeOutcome(R.newCard(run, 'jab', 'normal', 1), R.newCard(run, 'jab', 'normal', 2)).star === 3, '★1 + ★2 → ★3');
+  run.row = [R.newCard(run, 'jab', 'normal', 3), R.newCard(run, 'jab', 'normal', 1), null, null, null, null]; run.bench = [R.newCard(run, 'jab', 'foil', 2), null, null, null];
+  const tg = R.mergeTargets(run, 'jab'); ok(tg[0].c.star === 2 && tg[tg.length - 1].c.star === 3, 'merge targets: unmaxed best first, maxed last');
+}
+
 function window_r(x) { return globalThis.__C[x.id].r; }
 
 console.log(`${pass} passed, ${fail} failed`);

@@ -1,9 +1,9 @@
 // Shared UI helpers: DOM builder, icons, card rendering, tilt/shine, arranger, modals.
-import { ICONS } from './icons.js';
-import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js';
-import { cardText, cardValues, activeBonuses } from './engine.js';
-import { sellValue } from './run.js';
-import { sfx } from './audio.js';
+import { ICONS } from './icons.js?v=4';
+import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=4';
+import { cardText, cardValues, activeBonuses } from './engine.js?v=4';
+import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=4';
+import { sfx } from './audio.js?v=4';
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -158,6 +158,52 @@ export function zoomCard(inst, extra = '') {
 export function pillHp(run) { return h('span', { class: 'pill hp', html: `${icon('heart-beats')}<span>${run.hp}/${run.maxHp}</span>` }); }
 export function pillCoins(n) { return h('span', { class: 'pill coins', html: `${icon('two-coins')}<span class="coinv">${n}</span>` }); }
 
+
+// ---------------------------------------------------------------------------
+// Merging. mergeActions() builds the detail-sheet buttons for merging `donor`
+// into each owned copy; picking one runs doMerge(), which asks the player to
+// choose an edition when the merge offers more than one.
+// ---------------------------------------------------------------------------
+const ED_LABEL = ed => ed === 'normal' ? 'Plain' : EDITIONS[ed].name;
+const placeName = t => t.where === 'row' ? `row ${t.idx + 1}` : `bench ${t.idx + 1}`;
+
+export function mergeActions(run, donor, onMerge, exclude) {
+  const targets = mergeTargets(run, donor.id, exclude || donor);
+  const acts = [];
+  for (const t of targets) {
+    const out = mergeOutcome(t.c, donor);
+    if (!out.useful) continue;
+    const into = targets.length > 1 ? ` into ${placeName(t)}` : '';
+    const label = out.options.length > 1 ? `Merge${into} → ★${out.star}, pick edition`
+      : out.gainsStar ? `Merge${into} → ${mergeLabel(t.c, out.options[0], out.star)}`
+      : `Apply ${ED_LABEL(out.options[0].ed)} to your ★${t.c.star}${into ? ' in ' + placeName(t) : ''}`;
+    acts.push({ label, cls: 'gold small', fn: () => doMerge(run, t.c, donor, r => onMerge(t, r)) });
+  }
+  if (!acts.length && targets.length) acts.push({ label: `Your copy is maxed (★${MAX_STAR})`, cls: 'ghost small', disabled: true });
+  return acts;
+}
+
+export function doMerge(run, target, donor, done) {
+  const out = mergeOutcome(target, donor);
+  const finish = i => {
+    const r = applyMerge(run, target, donor, i);
+    if (r.star) { sfx.reveal('U'); toast(`<b>${CARDS[target.id].name}</b> → ★${target.star}${target.ed !== 'normal' ? ' ' + ED_LABEL(target.ed) : ''}`); }
+    else { sfx.coin(); toast(`Nothing to gain — sold for ${r.coins}`); }
+    done(r);
+  };
+  if (out.options.length < 2 || !out.useful) return finish(0);
+  const grid = h('div', { class: 'merge-pick' });
+  const m = modal([h('div', { class: 'h2' }, 'Choose the edition'),
+    h('div', { class: 'sub', style: { margin: '4px 0 10px' } }, `Both copies merge into one ★${out.star} ${CARDS[target.id].name}. Only one edition can survive.`), grid,
+    h('button', { class: 'btn ghost small', style: { 'margin-top': '10px', width: '100%' }, onclick: () => { sfx.back(); m.close(); } }, 'Cancel')]);
+  out.options.forEach((o, i) => {
+    const prev = { ...target, star: out.star, ed: o.ed, mp: o.mp, cracks: o.cracks };
+    const opt = h('button', { class: 'merge-opt' + (o.ed === 'cracked' ? ' risky' : ''), onclick: () => { m.close(); finish(i); } },
+      cardEl(prev, { mini: true }), h('b', {}, `Keep ${ED_LABEL(o.ed)}`), h('small', { html: EDITIONS[o.ed].desc || 'No edition bonus' }));
+    grid.append(opt);
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Arranger: the player's row (6) + bench (4). Tap to select, tap another slot
 // to swap/move. A detail sheet shows the selected card with contextual actions.
@@ -200,7 +246,7 @@ export function arranger(run, opts = {}) {
     if (showBench) wrap.append(h('div', { class: 'lab', style: { 'padding-top': '6px' } }, h('span', {}, 'Bench — kept, but does not fire')), bench);
     if (sel) {
       const c = (sel.where === 'row' ? run.row : run.bench)[sel.idx];
-      if (c) detailHost.append(detailSheet(c, opts.actions ? opts.actions(c, sel.where, sel.idx) : defaultActions(c, sel.where, sel.idx)));
+      if (c) detailHost.append(detailSheet(c, [...(opts.merge ? ownedMergeActions(c, sel.where, sel.idx) : []), ...(opts.actions ? opts.actions(c, sel.where, sel.idx) : defaultActions(c, sel.where, sel.idx))]));
     }
     opts.onRender && opts.onRender();
   }
@@ -208,6 +254,16 @@ export function arranger(run, opts = {}) {
   function defaultActions(c, where, idx) {
     if (opts.noSell) return [];
     return [{ label: `Sell +${sellValue(run, c)}`, cls: 'ghost small', fn: () => sell(where, idx) }];
+  }
+  // Merge the selected owned card (donor) into another owned copy.
+  function ownedMergeActions(c, where, idx) {
+    return mergeActions(run, c, (t) => {
+      const D = where === 'row' ? run.row : run.bench;
+      D[idx] = null;
+      // the merged card takes the row slot if the donor was firing and the target sat on the bench
+      if (where === 'row' && t.where === 'bench') { run.row[idx] = t.c; run.bench[t.idx] = null; }
+      sel = null; opts.onChange && opts.onChange(); render();
+    });
   }
   function sell(where, idx) {
     const arr = where === 'row' ? run.row : run.bench;
