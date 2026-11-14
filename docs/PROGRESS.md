@@ -24,7 +24,7 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
 - [x] Stage 1: merge rework — normal+special keeps special; two specials → player picks; Cracked never forced
       (fresh copy resets cracks to 3); maxed ★3 can "Apply edition"; choose target copy; merge owned↔owned;
       buttons preview result; exhaustive edition-combo tests. Same rules reused for the collection.
-- [ ] Stage 2: persistent collection (take home 3 on win / 1 on death) + Deck Box ante; meta save v2 migration.
+- [x] Stage 2: persistent collection (take home 3 on win / 1 on death) + Deck Box ante; meta save v2 migration.
 - [ ] Stage 3: Back Room hub — Credit currency, open sealed packs at home, grading slabs (loupe minigame), sell, upgrades.
 - [ ] Stage 4: customers & daily orders.
 - [ ] Stage 5: new set (~12 cards) + set release system; set-page completion cosmetics.
@@ -35,3 +35,9 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
 ## Later ideas
 - Fable playtest findings (agent running) → fold in.
 - More events, more bosses variants, card back picker in settings.
+
+### Back Room notes (for resuming)
+- meta.collection = [{cid,id,ed,star,mp?,cracks?,grade?}], meta.cuid, meta.boxCap (Deck Box points, base 3; R=2, M=3; Heat 4/7 shrink by 1 each).
+- Deck Box: heroSelect removes picked cids from collection → R.newRun({box}) → cards get c.boxed=cid. Win: endScreen returns
+  survivors once (run.boxReturned). Loss/abandon: gone. Take-home: win 3 / loss 1 (run.homePicked, run.homeDone).
+- Debug: __holo.pull([[id,ed,star],...]) opens a booster with exactly those cards.

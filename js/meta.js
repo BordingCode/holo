@@ -1,10 +1,11 @@
 // HOLO persistence: meta-progress (binder, unlocks, heat) + the in-progress run.
-import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=4';
+import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=5';
 
 const META_KEY = 'holo.meta.v1', RUN_KEY = 'holo.run.v1';
 
 const fresh = () => ({
   binder: {}, flags: {}, heatMax: 0, seen: false,
+  collection: [], cuid: 1, boxCap: 3,
   stats: { runs: 0, wins: 0, bestFloor: 0, pulls: 0, mythics: 0 },
   daily: {}, settings: { sound: true, music: true, reduceMotion: false, fast: false },
 });
@@ -15,7 +16,33 @@ function write(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return 
 export const meta = Object.assign(fresh(), read(META_KEY) || {});
 meta.settings = Object.assign(fresh().settings, meta.settings);
 meta.stats = Object.assign(fresh().stats, meta.stats);
+if (!Array.isArray(meta.collection)) meta.collection = [];
+meta.cuid ||= 1; meta.boxCap ||= 3;
 export const saveMeta = () => write(META_KEY, meta);
+
+// ---- the collection: physical cards you own between runs ----------------------
+// A collection card: {cid, id, ed, star, mp?, cracks?}. Run-only state (growth, uid) is stripped.
+export const BOX_COST = { C: 1, U: 1, R: 2, M: 3 };
+export const boxCost = c => BOX_COST[CARDS[c.id].r];
+// Deck Box capacity in points; Heat squeezes it.
+export const boxCapacity = heat => Math.max(1, meta.boxCap - (heat >= 4 ? 1 : 0) - (heat >= 7 ? 1 : 0));
+
+export function addToCollection(c) {
+  const k = { cid: 'k' + (meta.cuid++), id: c.id, ed: c.ed || 'normal', star: c.star || 1 };
+  if (k.ed === 'misprint') k.mp = c.mp ?? 0;
+  if (k.ed === 'cracked') k.cracks = c.cracks || 3;
+  if (c.grade) k.grade = c.grade;
+  meta.collection.push(k);
+  return k;
+}
+export function removeFromCollection(cids) {
+  const set = new Set(cids);
+  const out = meta.collection.filter(k => set.has(k.cid));
+  meta.collection = meta.collection.filter(k => !set.has(k.cid));
+  return out;
+}
+// How many cards you may take home when a run ends.
+export const takeHomeCount = win => win ? 3 : 1;
 
 export const loadRun = () => read(RUN_KEY);
 export const saveRun = run => write(RUN_KEY, run);

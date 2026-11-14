@@ -6,7 +6,7 @@
 // reversed) → Burn/Poison tick on enemies → enemies act (aims land) →
 // your Burn/Poison tick → Block fades → new intents + aims.
 // ---------------------------------------------------------------------------
-import { CARDS, ENEMIES, EDITIONS, STAR_MULT, MISPRINTS, RARITY_RANK, ED_RANK, SET_BONUS, TACTICS, ENEMY_EDITIONS } from './data.js?v=4';
+import { CARDS, ENEMIES, EDITIONS, STAR_MULT, MISPRINTS, RARITY_RANK, ED_RANK, SET_BONUS, TACTICS, ENEMY_EDITIONS } from './data.js?v=5';
 
 export const ROW_SIZE = 6;
 

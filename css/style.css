@@ -592,3 +592,30 @@ button { font: inherit; color: inherit; }
 .merge-opt.risky small { color: #ff9a9a; font-weight: 700; }
 .merge-opt.risky { border-color: #ff8a8a55; }
 .merge-opt:not(.risky) { border-color: var(--gold); box-shadow: 0 0 14px #ffd16633; }
+
+/* Deck Box (hero select) */
+.deckbox { margin: 12px 16px 0; padding: 12px; border-radius: 16px; background: linear-gradient(180deg, #2a1f10cc, #1a1424cc); border: 1px solid #ffd16655; display: flex; flex-direction: column; gap: 8px; }
+.box-head { display: flex; align-items: center; justify-content: space-between; }
+.box-head > span:first-child { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.box-head svg { width: 22px; height: 22px; fill: var(--gold); }
+.box-pips { display: flex; gap: 5px; }
+.box-pips i { width: 14px; height: 14px; border-radius: 4px; border: 2px solid #ffd16688; }
+.box-pips i.on { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 8px #ffd16699; }
+.box-cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.box-cards .card, .coll-item .card { --cw: 100%; width: 100%; font-size: 10cqw; }
+.box-cards > *, .coll-item { container-type: inline-size; }
+.deckbox .btn { align-self: flex-start; }
+.coll-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.coll-item { position: relative; border-radius: 10px; padding: 3px; border: 2px solid transparent; cursor: pointer; min-width: 0; }
+.coll-item.on { border-color: var(--gold); background: #ffd16622; }
+.coll-item.nofit { opacity: .35; }
+.coll-item .cost { position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--gold); background: #1a1424; padding: 1px 5px; border-radius: 6px; letter-spacing: 1px; }
+
+/* end screen: take cards home */
+.endfan { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.endfan .take { border-radius: 10px; padding: 3px; border: 2px solid transparent; cursor: pointer; transition: transform .15s; }
+.endfan .take.on { border-color: #6dffb0; background: #6dffb022; transform: translateY(-4px); box-shadow: 0 6px 18px #6dffb033; }
+.endfan.shredded .shred-wrap { position: relative; animation: shred 1.4s .5s both; }
+.endfan.shredded .shred-wrap::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 9px, var(--bg) 9px 12px); }
+@keyframes shred { from { filter: none; transform: none; } to { filter: grayscale(1) brightness(.5); transform: translateY(6px) rotate(-3deg); opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .endfan.shredded .shred-wrap { animation-duration: .01s; } }

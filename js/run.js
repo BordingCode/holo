@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=4';
-import { makeRng, hashStr } from './rng.js?v=4';
-import { createBattle, ROW_SIZE } from './engine.js?v=4';
+import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=5';
+import { makeRng, hashStr } from './rng.js?v=5';
+import { createBattle, ROW_SIZE } from './engine.js?v=5';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;
@@ -55,7 +55,7 @@ export const allOwned = run => [...run.row, ...run.bench].filter(Boolean);
 export const hasPassive = (run, p, includeBench) => (includeBench ? allOwned(run) : run.row.filter(Boolean)).some(c => CARDS[c.id].passive === p);
 
 // ---- new run ------------------------------------------------------------------
-export function newRun({ hero = 'kip', heat = 0, seed, daily = false, unlockedSets }) {
+export function newRun({ hero = 'kip', heat = 0, seed, daily = false, unlockedSets, box = [] }) {
   seed = seed ?? (Math.random() * 2 ** 32) >>> 0;
   const H = HEROES[hero];
   const maxHp = Math.round(H.hp * (heat >= 5 ? 0.9 : 1));
@@ -68,6 +68,18 @@ export function newRun({ hero = 'kip', heat = 0, seed, daily = false, unlockedSe
     tactics: [], relics: [], pity: 0,
   };
   H.start.forEach((id, k) => { run.row[k] = newCard(run, id); });
+  // Deck Box: collection cards brought along. They fill empty row slots, then the bench.
+  // They are AT RISK: if the run is lost they are not returned.
+  for (const k of box) {
+    const c = newCard(run, k.id, k.ed, k.star);
+    if (k.mp != null) c.mp = k.mp;
+    if (k.cracks) c.cracks = k.cracks;
+    if (k.grade) c.grade = k.grade;
+    c.boxed = k.cid;
+    const r = run.row.indexOf(null);
+    if (r >= 0) run.row[r] = c; else { const b = run.bench.indexOf(null); if (b >= 0) run.bench[b] = c; }
+  }
+  run.box = box.map(k => k.cid);
   run.map = genMap(run, 1);
   run.tactics.push(randomTactic(run, 'C'));
   return run;
@@ -274,6 +286,11 @@ export function openPack(run, spec) {
 
 export function score(c) { return RARITY_RANK[CARDS[c.id].r] * 10 + ED_RANK[c.ed] + (c.star - 1) * 4; }
 
+// ---- end of run: Deck Box return + take-home -----------------------------------
+// Boxed cards come home automatically after a WIN; after a loss they are shredded.
+export const boxedSurvivors = run => allOwned(run).filter(c => c.boxed);
+export const takeHomePool = run => allOwned(run).filter(c => !c.boxed);
+
 // ---- merging -------------------------------------------------------------------
 // Merging two copies of the same card: the TARGET survives, the DONOR is consumed.
 // Rules (shared by in-run merges and the collection):
@@ -323,6 +340,7 @@ export function applyMerge(run, target, donor, choice = 0) {
   if (o.ed === 'misprint') target.mp = o.mp ?? 0; else delete target.mp;
   if (o.ed === 'cracked') target.cracks = 3; else delete target.cracks;
   if ((donor.grow || 0) > (target.grow || 0)) target.grow = donor.grow; // growing cards keep the bigger growth
+  if (donor.boxed && !target.boxed) target.boxed = donor.boxed; // a Deck Box card lives on in the merged copy
   return { star: target.star, ed: target.ed };
 }
 
@@ -406,7 +424,9 @@ export function tradeUp(run, c) {
   const r = Math.min(3, RARITY_RANK[CARDS[c.id].r] + 1);
   const pool = CARD_LIST.filter(d => RARITY_RANK[d.r] === r && run.sets.includes(d.set) && d.id !== c.id);
   const def = rng.pick(pool.length ? pool : CARD_LIST.filter(d => RARITY_RANK[d.r] === r));
-  return newCard(run, def.id, c.ed === 'cracked' ? 'normal' : c.ed, c.star, rng);
+  const out = newCard(run, def.id, c.ed === 'cracked' ? 'normal' : c.ed, c.star, rng);
+  if (c.boxed) out.boxed = c.boxed; // a traded-up Deck Box card still goes home as the new card
+  return out;
 }
 
 export function gumball(run) {
