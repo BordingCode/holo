@@ -1,10 +1,10 @@
 // Battle screen: plan (rearrange, target) → FIGHT → animated event playback.
-import { CARDS, ENEMIES, HEROES, TACTICS, ENEMY_EDITIONS, RARITY } from './data.js?v=7';
-import { playRound, intentView, alive, useTactic } from './engine.js?v=7';
-import { h, $, $$, icon, arranger, toast, pillCoins, modal } from './ui.js?v=7';
-import { sfx, music } from './audio.js?v=7';
-import { burst, centerOf, floatText, shake, banner } from './fx.js?v=7';
-import { meta, saveMeta } from './meta.js?v=7';
+import { CARDS, ENEMIES, HEROES, TACTICS, ENEMY_EDITIONS, RARITY } from './data.js?v=9';
+import { playRound, intentView, alive, useTactic } from './engine.js?v=9';
+import { h, $, $$, icon, arranger, toast, pillCoins, modal } from './ui.js?v=9';
+import { sfx, music } from './audio.js?v=9';
+import { burst, centerOf, floatText, shake, banner } from './fx.js?v=9';
+import { meta, saveMeta } from './meta.js?v=9';
 
 const STATUS = [['burn', 'flame', '#ff8a3d'], ['poison', 'poison', '#9be15d'], ['vuln', 'broken-shield', '#ff6bd6'], ['weak', 'broken-bone', '#b8aee0'], ['str', 'biceps', '#ffb03a'], ['thorns', 'thorny-vine', '#c7e07a']];
 const SPECIAL_ICON = { shred: 'box-cutter', steal: 'old-king', copy: 'two-shadows', wrap: 'floating-ghost', pilfer: 'two-coins' };

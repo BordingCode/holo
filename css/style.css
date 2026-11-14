@@ -710,3 +710,19 @@ button { font: inherit; color: inherit; }
 .g-sub small { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
 .g-sub b { font-family: var(--display); font-size: 22px; }
 .g-sub.good b { color: #6dffb0; } .g-sub.bad b { color: #ff8a8a; }
+
+/* customers at the counter */
+.queue { display: flex; flex-direction: column; gap: 8px; }
+.cust { display: flex; gap: 10px; padding: 10px; border-radius: 16px; background: linear-gradient(135deg, #ffffff0e, #ffffff05); border: 1px solid #ffffff1a; border-left: 4px solid var(--cc, var(--line)); animation: fade .3s both; }
+.cust.empty { color: var(--dim); font-size: 13px; justify-content: center; border-left-width: 1px; }
+.cust .ava { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #ffffff30, #0004); box-shadow: 0 0 0 2px var(--cc); }
+.cust .ava svg { width: 28px; height: 28px; fill: var(--cc); }
+.cust .cbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cust .cname { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.cust .cname b { font-family: var(--display); font-size: 16px; color: var(--cc); }
+.cust .cname span { font-size: 11px; color: var(--dim); }
+.cust .say { font-size: 13.5px; line-height: 1.35; }
+.cust .crow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.cust .pay { display: inline-flex; align-items: center; gap: 4px; font-weight: 900; font-size: 13px; color: var(--credit); flex-wrap: wrap; }
+.cust .pay svg { width: 14px; height: 14px; fill: var(--credit); }
+.cust .btn.small { padding: 8px 12px; font-size: 14px; }

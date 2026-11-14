@@ -127,6 +127,25 @@ ok(G.surfaceScore(1) === 10 && G.surfaceScore(0.6) === 7 && G.surfaceScore(0) ==
 { let n10 = 0; for (let i = 0; i < 2000; i++) { const c = [0, 0, 0, 0].map(() => G.rollCorner()); if (G.finalGrade({ centering: 10, surface: 10, corners: G.cornersScore(c) }) === 10) n10++; }
   ok(n10 > 0 && n10 < 400, 'gem mint is rare even with perfect play (' + n10 + '/2000)'); }
 
+// ---- customers ----
+import * as CU from '../js/customers.js';
+{ const sets = ['base', 'ember', 'venom', 'iron'];
+  let okAll = true, kinds = new Set();
+  for (let i = 0; i < 300; i++) { const c = CU.makeCustomer(i, { sets, seed: 7 });
+    kinds.add(c.req.kind);
+    if (!CU.REGULARS[c.who] || !(c.pay.credit > 0) || CU.requestText(c.req).includes('?') || CU.requestText(c.req).includes('undefined')) okAll = false;
+    if (c.req.set && !sets.includes(c.req.set)) okAll = false;
+    if (c.req.id && !sets.includes(CARDS[c.req.id].set)) okAll = false; }
+  ok(okAll, 'customers: valid requests from unlocked sets only'); ok(kinds.size >= 6, 'customers: varied requests (' + [...kinds] + ')');
+  const a = CU.makeCustomer(5, { sets, seed: 7 }), b = CU.makeCustomer(5, { sets, seed: 7 }); ok(JSON.stringify(a) === JSON.stringify(b), 'customers: deterministic per seq');
+  const w = [CU.makeCustomer(1, { sets }), CU.makeCustomer(2, { sets })]; let dup = false;
+  for (let i = 3; i < 60; i++) if (w.some(x => x.who === CU.makeCustomer(i, { sets, waiting: w }).who)) dup = true; ok(!dup, 'customers: no regular queues twice');
+  ok(CU.matches({ kind: 'set_ed', set: 'ember', ed: 'foil' }, { id: 'ember_fang', ed: 'foil', star: 1 }), 'match set+edition');
+  ok(!CU.matches({ kind: 'set_ed', set: 'ember', ed: 'foil' }, { id: 'ember_fang', ed: 'holo', star: 1 }), 'no match wrong edition');
+  ok(CU.matches({ kind: 'graded', grade: 8 }, { id: 'jab', ed: 'normal', star: 1, grade: 9 }) && !CU.matches({ kind: 'graded', grade: 8 }, { id: 'jab', ed: 'normal', star: 1 }), 'graded match');
+  ok(CU.arrivals(0, 0) === 0 && CU.arrivals(0, 1) === 1 && CU.arrivals(1, 10) === 2 && CU.arrivals(3, 5) === 0, 'arrivals: capped queue, absence safe');
+}
+
 // ---- deploy hygiene: every module import must carry the same ?v= (else two copies of a module load → split save state)
 { const fs = await import('node:fs');
   const vs = new Set(); let bad = [];

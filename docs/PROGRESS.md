@@ -26,7 +26,7 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
       buttons preview result; exhaustive edition-combo tests. Same rules reused for the collection.
 - [x] Stage 2: persistent collection (take home 3 on win / 1 on death) + Deck Box ante; meta save v2 migration.
 - [x] Stage 3: Back Room hub — Credit currency, open sealed packs at home, grading slabs (loupe minigame), sell, upgrades.
-- [ ] Stage 4: customers & daily orders.
+- [x] Stage 4: customers & daily orders.
 - [ ] Stage 5: new set (~12 cards) + set release system; set-page completion cosmetics.
 - [ ] Stage 6: sim balance incl. Deck Box, phone-size verification, Bording Hub entry.
 
@@ -46,3 +46,6 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
   (10 needs all three sub-grades perfect; ~7% with perfect play). Slabs (k.grade) can't go in the Deck Box or merge until cracked.
   Credit per run = floor*2 + fights + bosses*10 (+40 + heat*10 on win) + display income (sum of displayed grades). Debug: __holo.credit(n), goto('backRoom').
 - GOTCHA: a module imported without the shared ?v= loads TWICE → separate `meta` objects (Back Room showed 0 Credit). Always run tools/bump.py; a test now fails on unversioned imports.
+- Customers (js/customers.js pure; UI in backroom.js): meta.customers (max 3), meta.custSeq/custSeed/custDay. +1 per calendar day since
+  last visit (capped) and +1 per finished run; they never leave on their own (no-FOMO per KB daily-return doc). 6 regulars with
+  request preferences; big rewards sometimes paid as a Collector's Tin (opened free at home).

@@ -1,14 +1,14 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=7';
-import * as R from './run.js?v=7';
-import { hashStr } from './rng.js?v=7';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=7';
-import { packScreen } from './pack.js?v=7';
-import { backRoom, creditPill } from './backroom.js?v=7';
-import { battleScreen } from './battle.js?v=7';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=7';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=7';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull, boxCost, boxCapacity, addToCollection, removeFromCollection, takeHomeCount, runCredit } from './meta.js?v=7';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=9';
+import * as R from './run.js?v=9';
+import { hashStr } from './rng.js?v=9';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=9';
+import { packScreen } from './pack.js?v=9';
+import { backRoom, creditPill, runArrival, customersWaiting } from './backroom.js?v=9';
+import { battleScreen } from './battle.js?v=9';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=9';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=9';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull, boxCost, boxCapacity, addToCollection, removeFromCollection, takeHomeCount, runCredit } from './meta.js?v=9';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -53,7 +53,7 @@ function title() {
   menu.append(h('button', { class: 'btn', onclick: () => { sfx.tap(); if (run && !run.over) confirmAbandon(() => heroSelect(false)); else heroSelect(false); } }, 'New Run'));
   const dk = todayKey(); const dres = meta.daily[dk];
   menu.append(h('button', { class: 'btn alt', onclick: () => { sfx.tap(); if (run && !run.over) confirmAbandon(() => startDaily()); else startDaily(); } }, dres ? `Daily Run — best: ${dres.win ? 'WON' : 'floor ' + dres.floor}` : 'Daily Run'));
-  menu.append(h('button', { class: 'btn backroom-btn', onclick: () => { sfx.tap(); openBackRoom(); }, html: `${icon('shop')}<span>The Back Room</span><em>${icon('gems')}${meta.credit} · ${meta.collection.length} cards</em>` }));
+  menu.append(h('button', { class: 'btn backroom-btn', onclick: () => { sfx.tap(); openBackRoom(); }, html: `${icon('shop')}<span>The Back Room</span><em>${icon('gems')}${meta.credit} · ${meta.collection.length} cards${customersWaiting() ? ` · ${customersWaiting()} waiting` : ''}</em>` }));
   menu.append(h('div', { style: { display: 'flex', gap: '10px' } },
     h('button', { class: 'btn ghost', style: { flex: '1' }, onclick: () => { sfx.tap(); binder(); } }, `Binder ${distinctPulled()}/${CARD_LIST.length}`),
     h('button', { class: 'btn ghost', style: { flex: 'none', padding: '0 16px' }, onclick: settings, html: icon('gears') + '' }) ));
@@ -674,8 +674,8 @@ function endScreen() {
   body.append(h('div', { class: 'endstats', html: `<div><b>${run.floor}</b><span>Floors</span></div><div><b>${run.stats.fights}</b><span>Fights won</span></div><div><b>${run.stats.packs}</b><span>Packs ripped</span></div>` }));
   if (win && !run.daily && meta.heatMax > (run.heat || 0)) body.append(h('div', { class: 'unlock done', html: `${icon('flame')}<span><b>HEAT ${meta.heatMax}</b> unlocked: ${R.HEAT[meta.heatMax]}</span>` }));
   // ---- Credit for the Back Room ----
-  if (!run.credit) { run.credit = runCredit(run, win); meta.credit += run.credit.total; saveMeta(); save(); }
-  body.append(h('div', { class: 'credit-gain', html: `${icon('gems')}<b>+${run.credit.total} Credit</b><span>${run.credit.display ? `run ${run.credit.base} + display case ${run.credit.display}` : 'spend it in the Back Room'}</span>` }));
+  if (!run.credit) { run.credit = runCredit(run, win); meta.credit += run.credit.total; run.newCustomer = runArrival(); saveMeta(); save(); }
+  body.append(h('div', { class: 'credit-gain', html: `${icon('gems')}<b>+${run.credit.total} Credit</b><span>${run.credit.display ? `run ${run.credit.base} + display case ${run.credit.display}` : 'spend it in the Back Room'}${run.newCustomer ? ' · a customer just walked in' : ''}</span>` }));
   // ---- Deck Box result ----
   const boxed = R.boxedSurvivors(run), lostBox = (run.box || []).length;
   if (win && boxed.length && !run.boxReturned) { boxed.forEach(c => addToCollection(c)); run.boxReturned = true; } // once, even across reloads

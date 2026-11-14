@@ -1,18 +1,44 @@
 // HOLO — the Back Room: your card shop between runs.
 // Collection (sell / grade / merge / display), sealed packs bought with Credit, upgrades.
-import { CARDS, RARITY, EDITIONS, SETS, PACKS } from './data.js?v=7';
-import * as R from './run.js?v=7';
-import { h, $, icon, cardEl, toast, modal, zoomCard, doMerge, packName, idleShimmer } from './ui.js?v=7';
-import { packScreen } from './pack.js?v=7';
-import { sfx, music } from './audio.js?v=7';
-import { burst, centerOf, banner, shake, RARITY_FX } from './fx.js?v=7';
-import { meta, saveMeta, unlockedSets, creditValue, GRADE_PRICE, HOME_PACKS, UPGRADES, buyUpgrade, displaySlots, displayIncome } from './meta.js?v=7';
-import { GRADE_NAMES, centeringScore, surfaceScore, rollCorner, cornersScore, finalGrade } from './grade.js?v=7';
+import { CARDS, RARITY, EDITIONS, SETS, PACKS } from './data.js?v=9';
+import * as R from './run.js?v=9';
+import { h, $, icon, cardEl, toast, modal, zoomCard, doMerge, packName, idleShimmer } from './ui.js?v=9';
+import { packScreen } from './pack.js?v=9';
+import { sfx, music } from './audio.js?v=9';
+import { burst, centerOf, banner, shake, RARITY_FX } from './fx.js?v=9';
+import { meta, saveMeta, unlockedSets, creditValue, GRADE_PRICE, HOME_PACKS, UPGRADES, buyUpgrade, displaySlots, displayIncome } from './meta.js?v=9';
+import { makeCustomer, arrivals, matches, requestText, REGULARS, dayNumber, MAX_WAITING } from './customers.js?v=9';
+import { GRADE_NAMES, centeringScore, surfaceScore, rollCorner, cornersScore, finalGrade } from './grade.js?v=9';
 
 let env; // { mount, back }
 const RR = { C: 0, U: 1, R: 2, M: 3 }, ER = { normal: 0, cracked: 1, misprint: 2, gilded: 3, foil: 4, holo: 5 };
 const sorted = list => list.slice().sort((a, b) => ((b.grade || 0) - (a.grade || 0)) || (RR[CARDS[b.id].r] - RR[CARDS[a.id].r]) || (b.star - a.star) || (ER[b.ed] - ER[a.ed]) || CARDS[a.id].name.localeCompare(CARDS[b.id].name));
 const find = cid => meta.collection.find(k => k.cid === cid);
+
+// ---- customers ----------------------------------------------------------------------------------
+function ensureCustomerState() {
+  meta.customers ||= []; meta.custSeq ||= 0;
+  meta.custSeed ||= (Math.random() * 2 ** 31) >>> 0;
+}
+function addCustomer() {
+  ensureCustomerState();
+  if (meta.customers.length >= MAX_WAITING) return false;
+  meta.customers.push(makeCustomer(++meta.custSeq, { sets: unlockedSets(), seed: meta.custSeed, waiting: meta.customers }));
+  return true;
+}
+// Called when the Back Room opens: one customer per calendar day since the last visit (queue max 3).
+function dailyArrivals() {
+  ensureCustomerState();
+  const today = dayNumber();
+  if (meta.custDay == null) { addCustomer(); addCustomer(); meta.custDay = today; saveMeta(); return 2; } // first visit: two regulars waiting
+  const n = arrivals(meta.customers.length, today - meta.custDay);
+  for (let i = 0; i < n; i++) addCustomer();
+  if (today !== meta.custDay) { meta.custDay = today; saveMeta(); }
+  return n;
+}
+// Called once per finished run: one more customer walks in (if there's room).
+export function runArrival() { const ok = addCustomer(); if (ok) saveMeta(); return ok; }
+export const customersWaiting = () => (meta.customers || []).length;
 export const creditPill = () => h('span', { class: 'pill credit', html: `${icon('gems')}<span>${meta.credit}</span>` });
 
 // A graded card sealed in its slab.
@@ -30,6 +56,17 @@ export function backRoom(e) {
   const top = h('div', { class: 'topbar' }, h('button', { class: 'iconbtn', onclick: () => { sfx.back(); env.back(); }, html: icon('anticlockwise-rotation') }),
     h('span', { class: 'h1' }, 'The Back Room'), h('span', { class: 'spacer' }), creditPill());
   const body = h('div', { class: 'scroll', style: { flex: '1' } });
+  const arrived = dailyArrivals();
+  if (arrived > 1 && meta.custSeq > 2) setTimeout(() => toast(`Welcome back! <b>${arrived} new customers</b> came by while you were away.`, 2800), 300);
+
+  // ---- customers ----
+  const counterSec = h('div', { class: 'br-sec' }, h('div', { class: 'br-head' }, h('b', {}, 'At the counter'),
+    h('span', { class: 'sub' }, meta.customers.length ? 'They\'ll wait as long as it takes' : 'A new customer comes in each day, and after every run')));
+  const queue = h('div', { class: 'queue' });
+  meta.customers.forEach(c => queue.append(customerEl(c)));
+  if (!meta.customers.length) queue.append(h('div', { class: 'cust empty' }, 'The shop is quiet. Go rip some packs.'));
+  counterSec.append(queue);
+  body.append(counterSec);
 
   // ---- display case ----
   const n = displaySlots();
@@ -82,6 +119,59 @@ export function backRoom(e) {
     list.length ? grid : h('div', { class: 'sub', style: { padding: '8px 2px' } }, 'Empty for now. At the end of every run you take cards home — and packs bought here land straight in your collection.')));
   scr.append(top, body);
   env.mount(scr);
+}
+
+// ---- a customer at the counter ----------------------------------------------------------------
+function payText(pay) {
+  const parts = [];
+  if (pay.credit) parts.push(`${icon('gems')}${pay.credit}`);
+  if (pay.pack) parts.push(`${icon('open-treasure-chest')}${PACKS[pay.pack].name}`);
+  return parts.join(' + ');
+}
+function customerEl(c) {
+  const Rg = REGULARS[c.who];
+  const fits = meta.collection.filter(k => matches(c.req, k));
+  const el = h('div', { class: 'cust', style: { '--cc': Rg.color } },
+    h('div', { class: 'ava', html: icon(Rg.icon) }),
+    h('div', { class: 'cbody' },
+      h('div', { class: 'cname', html: `<b>${Rg.name}</b><span>${Rg.tag}</span>` }),
+      h('div', { class: 'say', html: `“${c.hi} ${requestText(c.req)}.”` }),
+      h('div', { class: 'crow' },
+        h('span', { class: 'pay', html: payText(c.pay) }),
+        h('button', { class: 'btn small ' + (fits.length ? 'gold' : 'ghost'), disabled: !fits.length, onclick: () => { sfx.tap(); serve(c); } }, fits.length ? `Serve (${fits.length} fit)` : 'Nothing fits yet'))));
+  return el;
+}
+function serve(c) {
+  const Rg = REGULARS[c.who];
+  const fits = sorted(meta.collection.filter(k => matches(c.req, k))).reverse(); // cheapest first
+  const grid = h('div', { class: 'coll-grid' });
+  let m;
+  fits.forEach(k => {
+    const el = h('div', { class: 'coll-item' }, k.grade ? slabEl(k, { mini: true }) : cardEl(k, { mini: true }), h('span', { class: 'cost', html: `${creditValue(k)}` }));
+    el.addEventListener('click', () => {
+      const v = creditValue(k);
+      if (v > (c.pay.credit || 0) && !c.pay.pack && !confirm(`${CARDS[k.id].name} would sell for ${v} Credit, but ${Rg.name} pays ${c.pay.credit}. Hand it over anyway?`)) return;
+      m.close(); handOver(c, k);
+    });
+    grid.append(el);
+  });
+  m = modal([h('div', { class: 'h2' }, `${Rg.name} wants ${requestText(c.req).replace(/<[^>]+>/g, '')}`),
+    h('div', { class: 'sub', html: `Pays ${payText(c.pay)}. Tap a card to hand it over — the small number is what it would sell for.` }), grid,
+    h('div', { style: { display: 'flex', gap: '8px', 'margin-top': '12px' } },
+      h('button', { class: 'btn ghost small', style: { flex: '1' }, onclick: () => { m.close(); } }, 'Not yet'),
+      h('button', { class: 'btn ghost small', style: { flex: '1' }, onclick: () => { meta.customers = meta.customers.filter(x => x !== c); saveMeta(); sfx.back(); m.close(); toast(`${Rg.name} shrugs and heads out. Someone new will come by.`); backRoom(); } }, 'Send away'))]);
+}
+function handOver(c, k) {
+  const Rg = REGULARS[c.who];
+  meta.collection = meta.collection.filter(x => x !== k);
+  meta.display = meta.display.filter(cid => cid !== k.cid);
+  meta.customers = meta.customers.filter(x => x !== c);
+  meta.credit += c.pay.credit || 0;
+  meta.served = (meta.served || 0) + 1;
+  saveMeta(); sfx.buy();
+  toast(`<b>${Rg.name}:</b> “${Rg.bye}” <span style="color:var(--credit)">+${c.pay.credit || 0} Credit</span>`, 2600);
+  if (c.pay.pack) return giftPack(c.pay.pack);
+  backRoom();
 }
 
 // ---- one card: actions ----------------------------------------------------------------------
@@ -144,6 +234,14 @@ function buyPack(type) {
   meta.homePack = result; // saved, so a reload mid-tear keeps the pack
   saveMeta(); sfx.buy();
   openHomePack(result);
+}
+
+function giftPack(type) {
+  const run = tmpRun();
+  const result = R.openPack(run, { type });
+  result.type = type;
+  meta.homePack = result; saveMeta();
+  setTimeout(() => openHomePack(result), 600);
 }
 
 function openHomePack(result) {
