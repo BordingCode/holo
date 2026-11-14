@@ -12,8 +12,9 @@ export const SETS = {
   clock:  { name: 'Clockwork', color: '#f2c14e', c2: '#8a5a12', glyph: 'cog' },
   gilded: { name: 'Gilded',    color: '#ffe07a', c2: '#a8741a', glyph: 'two-coins' },
   void:   { name: 'Void',      color: '#b07cff', c2: '#3a1470', glyph: 'portal' },
+  vintage: { name: 'Vintage',  color: '#d9b48a', c2: '#5c3d24', glyph: 'scroll-unfurled' },
 };
-export const SET_ORDER = ['base', 'ember', 'venom', 'iron', 'clock', 'gilded', 'void'];
+export const SET_ORDER = ['base', 'ember', 'venom', 'iron', 'clock', 'gilded', 'void', 'vintage'];
 
 export const RARITY = {
   C: { name: 'Common',   color: '#d8d2c4', sell: 2 },
@@ -140,6 +141,21 @@ card('clock', 'chain_reaction', 'Chain Reaction', 'R', 'gears', {}, 'For the res
 card('gilded', 'tip_jar', 'Tip Jar', 'C', 'coins-pile', { c: 1 }, 'Gain {c} coin for every 2 cards fired before it.', (x, v) => x.coins(v.c * Math.floor(x.firedBefore / 2)));
 card('gilded', 'piggy_bank', 'Piggy Bank', 'U', 'gold-bar', { d: 40 }, 'Gain 1 coin and add 1 to the bank{grow}. At 10, SMASH: deal {d} to ALL and gain 10 coins.', (x, v) => { x.coins(1); x.grow(1, 10); if ((x.inst.grow || 0) >= 10) { x.inst.grow = 0; x.smash(v.d); x.coins(10); } }, { grows: true });
 card('gilded', 'prism', 'Prism', 'R', 'gems', {}, 'All damage this round ×1.25 for each special-edition card in your row.', (x) => { const n = x.countRowInst(c => c.ed && c.ed !== 'normal'); if (n) x.amp(Math.pow(1.25, n)); });
+
+// ---------- Vintage (released in the Back Room) ----------
+// Old first editions: they reward MERGING (★ stars across your row) and COLLECTING (special editions).
+card('vintage', 'faded_print', 'Faded Print', 'C', 'scroll-unfurled', { d: 1 }, 'Deal {d} for each ★ in your row (max 10 ★).', (x, v) => x.hit(v.d * Math.min(10, x.rowStars())));
+card('vintage', 'shoebox', 'Shoebox Find', 'C', 'cardboard-box', { c: 1, n: 2 }, 'Gain {c} coin. The next card deals +{n} per hit for each ★ it has.', (x, v) => { x.coins(v.c); const nx = x.nextInst(); x.buffNext(v.n * (nx ? nx.star || 1 : 1), 1); });
+card('vintage', 'hardcover', 'Hardcover', 'C', 'book-cover', { b: 3 }, 'Gain {b} Block for each ★ on the card to the RIGHT.', (x, v) => { const r = x.B.row[x.slot + 1]; x.block(v.b * (r ? r.star || 1 : 1)); });
+card('vintage', 'sepia_reel', 'Sepia Reel', 'C', 'film-strip', { d: 5, n: 1 }, 'Deal {d}. If any card in your row is Foil or Holo, apply {n} Vulnerable.', (x, v) => { x.hit(v.d); if (x.countRowInst(c => c.ed === 'foil' || c.ed === 'holo')) x.vuln(v.n); });
+card('vintage', 'first_stamp', 'First Stamp', 'C', 'stamper', { d: 4, b: 4 }, 'Deal {d}. If this card has a special edition, also gain {b} Block.', (x, v) => { x.hit(v.d); if (x.inst.ed && x.inst.ed !== 'normal') x.block(v.b); });
+card('vintage', 'heirloom', 'Heirloom Watch', 'U', 'pocket-watch', { d: 3 }, 'Deal {d}{grow}. Ticks +1 every time it fires this run (max +12).', (x, v) => { x.hit(v.d + (x.inst.grow || 0)); x.grow(1, 12); }, { grows: true });
+card('vintage', 'mint_condition', 'Mint Condition', 'U', 'laurel-crown', { n: 4 }, 'If the card to the RIGHT is ★3, it fires twice. Otherwise it deals +{n} per hit.', (x, v) => { const r = x.B.row[x.slot + 1]; if (r && (r.star || 1) >= 3) x.overclockRight(); else x.buffNext(v.n, 1); });
+card('vintage', 'appraisal_lamp', 'Appraisal Lamp', 'U', 'desk-lamp', { d: 3 }, 'Deal {d} for each different edition in your row (Plain counts).', (x, v) => { const eds = new Set(); x.B.row.forEach(c => { if (c) eds.add(c.ed || 'normal'); }); x.hit(v.d * eds.size); });
+card('vintage', 'restorer', 'Restorer', 'U', 'paint-brush', { b: 2, h: 1 }, 'Gain {b} Block and heal {h} for each ★ in your row (max 6 ★).', (x, v) => { const n = Math.min(6, x.rowStars()); x.block(v.b * n); x.heal(v.h * n); });
+card('vintage', 'holy_grail', 'Holy Grail', 'R', 'holy-grail', {}, 'All damage this round ×1.75 if every card in your row is ★2 or better. Otherwise ×1.2.', (x) => { const all = x.B.row.filter(Boolean).every(c => (c.star || 1) >= 2); x.amp(all ? 1.75 : 1.2); });
+card('vintage', 'the_archive', 'The Archive', 'R', 'open-book', {}, 'Fire every OTHER ★3 card in your row again.', (x) => x.fireWhere(c => (c.star || 1) >= 3));
+card('vintage', 'golden_age', 'Golden Age', 'M', 'sands-of-time', { d: 2 }, 'Deal {d} to ALL for each ★ in your row (max 15 ★).', (x, v) => x.hit(v.d * Math.min(15, x.rowStars()), { all: true }));
 card('void', 'siphon', 'Siphon', 'U', 'leeching-worm', { d: 9 }, 'Deal {d}. Heal half the damage it dealt.', (x, v) => { const dealt = x.hit(v.d); x.heal(Math.floor(dealt / 2)); });
 card('void', 'event_horizon', 'Event Horizon', 'R', 'magic-portal', { s: 5 }, 'Lose {s} HP. All damage for the rest of this round ×2.', (x, v) => { x.selfDmg(v.s); x.amp(2); }, { fixed: ['s'] });
 
@@ -250,6 +266,7 @@ export const SET_BONUS = {
   clock:  [[2, 'Your FIRST card fires twice.'], [4, 'Your LAST card fires twice too.'], [6, 'Every 3rd round your whole row fires twice.']],
   gilded: [[2, 'Gain 2 coins for every enemy defeated.'], [4, 'Hits deal +1 per 10 coins you hold (max +6).'], [6, 'Gain 4 coins every round.']],
   void:   [[2, 'HP you lose to your own cards is 1 less.'], [4, 'Losing HP charges your next hit with +6.'], [6, 'Void cards fire twice.']],
+  vintage: [[2, 'Your ★2+ cards deal +1 per hit.'], [4, 'Your leftmost ★3 card fires twice.'], [6, 'Special-edition cards deal ×1.5 damage.']],
 };
 
 // ---------------------------------------------------------------------------

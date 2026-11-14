@@ -1,14 +1,14 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=9';
-import * as R from './run.js?v=9';
-import { hashStr } from './rng.js?v=9';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=9';
-import { packScreen } from './pack.js?v=9';
-import { backRoom, creditPill, runArrival, customersWaiting } from './backroom.js?v=9';
-import { battleScreen } from './battle.js?v=9';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=9';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=9';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull, boxCost, boxCapacity, addToCollection, removeFromCollection, takeHomeCount, runCredit } from './meta.js?v=9';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=10';
+import * as R from './run.js?v=10';
+import { hashStr } from './rng.js?v=10';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=10';
+import { packScreen } from './pack.js?v=10';
+import { backRoom, creditPill, runArrival, customersWaiting, SET_REWARD } from './backroom.js?v=10';
+import { battleScreen } from './battle.js?v=10';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=10';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=10';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull, boxCost, boxCapacity, addToCollection, removeFromCollection, takeHomeCount, runCredit } from './meta.js?v=10';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -746,7 +746,8 @@ function binder(fromRun) {
     tabs.innerHTML = '';
     for (const s of SET_ORDER) {
       const S = SETS[s];
-      tabs.append(h('div', { class: 'tab' + (tab === s ? ' on' : '') + (sets.includes(s) ? '' : ' lock'), style: { '--k': S.color }, html: icon(S.glyph) + S.name, onclick: () => { tab = s; sfx.tap(); render(); } }));
+      const done = (meta.setsDone || []).includes(s);
+      tabs.append(h('div', { class: 'tab' + (tab === s ? ' on' : '') + (sets.includes(s) ? '' : ' lock') + (done ? ' done' : ''), style: { '--k': S.color }, html: icon(S.glyph) + S.name + (done ? ' ★' : ''), onclick: () => { tab = s; sfx.tap(); render(); } }));
     }
     tabs.append(h('div', { class: 'tab' + (tab === 'unlocks' ? ' on' : ''), style: { '--k': '#6dffb0' }, html: icon('padlock') + 'Unlocks', onclick: () => { tab = 'unlocks'; sfx.tap(); render(); } }));
     page.innerHTML = '';
@@ -762,7 +763,7 @@ function binder(fromRun) {
     const cards = CARD_LIST.filter(c => c.set === tab);
     const have = cards.filter(c => meta.binder[c.id]).length;
     page.append(h('div', { style: { padding: '4px 14px 2px', display: 'flex', 'justify-content': 'space-between', 'font-weight': 800, 'font-size': '13px' } },
-      h('span', {}, SETS[tab].name + (sets.includes(tab) ? '' : ' (locked — not in packs yet)')), h('span', { style: { color: 'var(--muted)' } }, `${have}/${cards.length}`)));
+      h('span', {}, SETS[tab].name + (sets.includes(tab) ? '' : ' (locked — not in packs yet)')), h('span', { style: { color: have === cards.length ? 'var(--gold)' : 'var(--muted)' } }, have === cards.length ? `COMPLETE ★ ${have}/${cards.length}` : `${have}/${cards.length} · complete it for ${SET_REWARD} Credit`)));
     page.append(h('div', { class: 'progress', html: `<i style="width:${have / cards.length * 100}%"></i>` }));
     const grid = h('div', { class: 'binder-page' });
     for (const d of cards) {

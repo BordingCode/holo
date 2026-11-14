@@ -6,7 +6,7 @@
 // reversed) → Burn/Poison tick on enemies → enemies act (aims land) →
 // your Burn/Poison tick → Block fades → new intents + aims.
 // ---------------------------------------------------------------------------
-import { CARDS, ENEMIES, EDITIONS, STAR_MULT, MISPRINTS, RARITY_RANK, ED_RANK, SET_BONUS, TACTICS, ENEMY_EDITIONS } from './data.js?v=9';
+import { CARDS, ENEMIES, EDITIONS, STAR_MULT, MISPRINTS, RARITY_RANK, ED_RANK, SET_BONUS, TACTICS, ENEMY_EDITIONS } from './data.js?v=10';
 
 export const ROW_SIZE = 6;
 
@@ -200,7 +200,9 @@ function makeCtx(B, inst, slot, depth, bonus) {
         let add = bonus + B.roundBonus + P.str + B.voidCharge;
         if (B.sets.venom >= 2 && t.poison > 0) add += 3;
         if (B.sets.gilded >= 2) add += Math.min(6, Math.floor(B.coins / 10));
+        if (B.sets.vintage >= 1 && (inst.star || 1) >= 2) add += 1;
         let d = n + add;
+        if (B.sets.vintage >= 3 && inst.ed && inst.ed !== 'normal') d *= 1.5;
         if (P.weak > 0) d *= 0.75;
         if (t.vuln > 0) d *= 1.5;
         d *= B.roundMult;
@@ -255,6 +257,18 @@ function makeCtx(B, inst, slot, depth, bonus) {
       if (s == null) { push(B, { t: 'fizzle', slot, text: 'Nothing to rewind' }); return; }
       fireOnce(B, B.row[s], s, depth + 1, bonus, slot);
     },
+    // Vintage helpers
+    rowStars() { let n = 0; B.row.forEach((c, s) => { if (working(B, s)) n += c.star || 1; }); return n; },
+    nextInst() { const o = order(B); const i = o.indexOf(slot); const s = o.slice(i + 1).find(s => working(B, s) && !CARDS[B.row[s].id].passive); return s == null ? null : B.row[s]; },
+    fireWhere(pred) {
+      if (depth >= 3) return;
+      let any = false;
+      for (const s of order(B)) {
+        if (s === slot || !working(B, s) || CARDS[B.row[s].id].passive || B.row[s].id === inst.id || !pred(B.row[s])) continue;
+        any = true; fireOnce(B, B.row[s], s, depth + 1, bonus, slot);
+      }
+      if (!any) push(B, { t: 'fizzle', slot, text: 'No ★3 cards' });
+    },
     countRow(pred) { let n = 0; B.row.forEach((c, s) => { if (working(B, s) && pred(CARDS[c.id])) n++; }); return n; },
     countRowInst(pred) { let n = 0; B.row.forEach((c, s) => { if (working(B, s) && pred(c)) n++; }); return n; },
   };
@@ -288,6 +302,7 @@ function fireSlot(B, slot, extraTimes = 0) {
   B.pendingNext = B.pendingNext.filter(p => p.left > 0);
   let times = 1 + extraTimes + (inst.ed === 'holo' ? 1 : 0);
   if (def.set === 'void' && B.sets.void >= 3) times++;
+  if (B.sets.vintage >= 2 && (inst.star || 1) >= 3 && slot === order(B).find(s => working(B, s) && (B.row[s].star || 1) >= 3 && !CARDS[B.row[s].id].passive)) times++;
   if (B.overclock.has(slot)) { times++; B.overclock.delete(slot); }
   const wasSpot = B.spotlight;
   for (let k = 0; k < times && !B.over; k++) {

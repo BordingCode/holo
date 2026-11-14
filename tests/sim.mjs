@@ -90,7 +90,9 @@ function play(run, kind) {
 
 const res = { win: 0, deaths: {}, act: { 1: 0, 2: 0, 3: 0 }, floors: 0 };
 for (let i = 0; i < N; i++) {
-  const run = R.newRun({ hero: HERO, heat: HEAT, seed: 1000 + i, unlockedSets: ALLSETS });
+  // BOX=id:ed:star,... → bring these collection cards in the Deck Box (e.g. BOX=golden_age:holo:2)
+  const box = process.env.BOX ? process.env.BOX.split(',').map((t, k) => { const [id, ed = 'normal', star = 1] = t.split(':'); return { cid: 'k' + k, id, ed, star: +star }; }) : [];
+  const run = R.newRun({ hero: HERO, heat: HEAT, seed: 1000 + i, unlockedSets: ALLSETS, box });
   let guard = 0;
   while (!run.over && guard++ < 200) {
     const opts = R.reachable(run).map(id => R.nodeById(run, id));

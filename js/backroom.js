@@ -1,14 +1,14 @@
 // HOLO — the Back Room: your card shop between runs.
 // Collection (sell / grade / merge / display), sealed packs bought with Credit, upgrades.
-import { CARDS, RARITY, EDITIONS, SETS, PACKS } from './data.js?v=9';
-import * as R from './run.js?v=9';
-import { h, $, icon, cardEl, toast, modal, zoomCard, doMerge, packName, idleShimmer } from './ui.js?v=9';
-import { packScreen } from './pack.js?v=9';
-import { sfx, music } from './audio.js?v=9';
-import { burst, centerOf, banner, shake, RARITY_FX } from './fx.js?v=9';
-import { meta, saveMeta, unlockedSets, creditValue, GRADE_PRICE, HOME_PACKS, UPGRADES, buyUpgrade, displaySlots, displayIncome } from './meta.js?v=9';
-import { makeCustomer, arrivals, matches, requestText, REGULARS, dayNumber, MAX_WAITING } from './customers.js?v=9';
-import { GRADE_NAMES, centeringScore, surfaceScore, rollCorner, cornersScore, finalGrade } from './grade.js?v=9';
+import { CARDS, CARD_LIST, SET_ORDER, RARITY, EDITIONS, SETS, PACKS } from './data.js?v=10';
+import * as R from './run.js?v=10';
+import { h, $, icon, cardEl, toast, modal, zoomCard, doMerge, packName, idleShimmer } from './ui.js?v=10';
+import { packScreen } from './pack.js?v=10';
+import { sfx, music } from './audio.js?v=10';
+import { burst, centerOf, banner, shake, RARITY_FX } from './fx.js?v=10';
+import { meta, saveMeta, unlocked, unlockedSets, creditValue, GRADE_PRICE, HOME_PACKS, UPGRADES, buyUpgrade, displaySlots, displayIncome } from './meta.js?v=10';
+import { makeCustomer, arrivals, matches, requestText, REGULARS, dayNumber, MAX_WAITING } from './customers.js?v=10';
+import { GRADE_NAMES, centeringScore, surfaceScore, rollCorner, cornersScore, finalGrade } from './grade.js?v=10';
 
 let env; // { mount, back }
 const RR = { C: 0, U: 1, R: 2, M: 3 }, ER = { normal: 0, cracked: 1, misprint: 2, gilded: 3, foil: 4, holo: 5 };
@@ -38,6 +38,36 @@ function dailyArrivals() {
 }
 // Called once per finished run: one more customer walks in (if there's room).
 export function runArrival() { const ok = addCustomer(); if (ok) saveMeta(); return ok; }
+// ---- milestones: set releases & completed binder pages ---------------------------------------------
+export const SET_REWARD = 50;
+function milestones() {
+  meta.flags ||= {};
+  const out = [];
+  if (unlocked('vintage') && !meta.flags.vintageReleased) {
+    meta.flags.vintageReleased = true;
+    out.push(() => {
+      banner('NEW SET RELEASED', 'Vintage — now in every pack', SETS.vintage.color); sfx.jackpot();
+      setTimeout(() => {
+        const fan = h('div', { class: 'release-fan' });
+        ['heirloom', 'golden_age', 'mint_condition'].forEach((id, i) => { const c = cardEl({ id, star: 1, ed: i === 1 ? 'holo' : 'normal' }, { tilt: true }); if (i === 1) idleShimmer(c, 1.2); c.addEventListener('click', () => zoomCard({ id, star: 1, ed: i === 1 ? 'holo' : 'normal' })); fan.append(c); });
+        const m = modal([h('div', { class: 'h2', style: { color: SETS.vintage.color } }, 'Vintage is out!'),
+          h('div', { class: 'sub', html: '12 first editions from the back of the shop. They <b>love ★ stars</b> (merge your copies!) and <b>special editions</b>. Find them in every pack, in runs and here.' }), fan,
+          h('button', { class: 'btn gold', style: { width: '100%', 'margin-top': '12px' }, onclick: () => m.close() }, 'Can\'t wait')]);
+      }, 1800);
+    });
+  }
+  meta.setsDone ||= [];
+  for (const s of SET_ORDER) {
+    if (meta.setsDone.includes(s)) continue;
+    const cards = CARD_LIST.filter(c => c.set === s);
+    if (cards.length && cards.every(c => meta.binder[c.id])) {
+      meta.setsDone.push(s); meta.credit += SET_REWARD;
+      out.push(() => { banner('SET COMPLETE', `${SETS[s].name} binder page · +${SET_REWARD} Credit`, SETS[s].color); sfx.win(); });
+    }
+  }
+  if (out.length) { saveMeta(); out.forEach((f, i) => setTimeout(f, 500 + i * 2600)); }
+}
+
 export const customersWaiting = () => (meta.customers || []).length;
 export const creditPill = () => h('span', { class: 'pill credit', html: `${icon('gems')}<span>${meta.credit}</span>` });
 
@@ -56,6 +86,7 @@ export function backRoom(e) {
   const top = h('div', { class: 'topbar' }, h('button', { class: 'iconbtn', onclick: () => { sfx.back(); env.back(); }, html: icon('anticlockwise-rotation') }),
     h('span', { class: 'h1' }, 'The Back Room'), h('span', { class: 'spacer' }), creditPill());
   const body = h('div', { class: 'scroll', style: { flex: '1' } });
+  milestones();
   const arrived = dailyArrivals();
   if (arrived > 1 && meta.custSeq > 2) setTimeout(() => toast(`Welcome back! <b>${arrived} new customers</b> came by while you were away.`, 2800), 300);
 

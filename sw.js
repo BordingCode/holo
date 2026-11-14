@@ -1,7 +1,7 @@
 // HOLO service worker: network-first (always fresh when online), cache fallback offline.
-const CACHE = 'holo-v9';
-const CORE = ['./', 'index.html', 'css/style.css?v=9', 'js/main.js?v=9', 'js/data.js?v=9', 'js/engine.js?v=9', 'js/run.js?v=9', 'js/rng.js?v=9', 'js/ui.js?v=9',
-  'js/pack.js?v=9', 'js/battle.js?v=9', 'js/audio.js?v=9', 'js/fx.js?v=9', 'js/meta.js?v=9', 'js/backroom.js?v=9', 'js/grade.js?v=9', 'js/customers.js?v=9', 'js/icons.js?v=9', 'assets/fonts/lilita.woff2', 'assets/fonts/nunito.woff2',
+const CACHE = 'holo-v10';
+const CORE = ['./', 'index.html', 'css/style.css?v=10', 'js/main.js?v=10', 'js/data.js?v=10', 'js/engine.js?v=10', 'js/run.js?v=10', 'js/rng.js?v=10', 'js/ui.js?v=10',
+  'js/pack.js?v=10', 'js/battle.js?v=10', 'js/audio.js?v=10', 'js/fx.js?v=10', 'js/meta.js?v=10', 'js/backroom.js?v=10', 'js/grade.js?v=10', 'js/customers.js?v=10', 'js/icons.js?v=10', 'assets/fonts/lilita.woff2', 'assets/fonts/nunito.woff2',
   'assets/icon-192.png', 'assets/icon-512.png', 'manifest.webmanifest'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => fetch(u, { cache: 'reload' }).then(r => r.ok && c.put(u, r)).catch(() => {})))).then(() => self.skipWaiting()));

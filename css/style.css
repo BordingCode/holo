@@ -365,6 +365,7 @@ button { font: inherit; color: inherit; }
 .tab svg { width: 15px; height: 15px; fill: var(--k); }
 .tab.on { background: color-mix(in srgb, var(--k) 25%, transparent); border-color: var(--k); }
 .tab.lock { opacity: .4; }
+.tab.done { box-shadow: inset 0 -2px 0 var(--gold); }
 .binder-page { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 10px 14px 20px; }
 .pocket { position: relative; aspect-ratio: 63/88; border-radius: 9px; background: #ffffff06; border: 1.5px solid #ffffff14; box-shadow: inset 0 0 20px #0006; cursor: pointer; }
 .pocket .card { --cw: 100%; width: 100%; position: absolute; inset: 0; }
@@ -726,3 +727,8 @@ button { font: inherit; color: inherit; }
 .cust .pay { display: inline-flex; align-items: center; gap: 4px; font-weight: 900; font-size: 13px; color: var(--credit); flex-wrap: wrap; }
 .cust .pay svg { width: 14px; height: 14px; fill: var(--credit); }
 .cust .btn.small { padding: 8px 12px; font-size: 14px; }
+.release-fan { display: flex; justify-content: center; margin: 14px 0 4px; }
+.release-fan .card { --cw: min(28vw, 112px); margin: 0 -10px; }
+.release-fan .card:nth-child(1) { transform: rotate(-9deg) translateY(8px); }
+.release-fan .card:nth-child(2) { z-index: 2; transform: translateY(-4px); }
+.release-fan .card:nth-child(3) { transform: rotate(9deg) translateY(8px); }

@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=9';
-import { makeRng, hashStr } from './rng.js?v=9';
-import { createBattle, ROW_SIZE } from './engine.js?v=9';
+import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=10';
+import { makeRng, hashStr } from './rng.js?v=10';
+import { createBattle, ROW_SIZE } from './engine.js?v=10';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;

@@ -27,7 +27,7 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
 - [x] Stage 2: persistent collection (take home 3 on win / 1 on death) + Deck Box ante; meta save v2 migration.
 - [x] Stage 3: Back Room hub — Credit currency, open sealed packs at home, grading slabs (loupe minigame), sell, upgrades.
 - [x] Stage 4: customers & daily orders.
-- [ ] Stage 5: new set (~12 cards) + set release system; set-page completion cosmetics.
+- [x] Stage 5: new set (~12 cards) + set release system; set-page completion cosmetics.
 - [ ] Stage 6: sim balance incl. Deck Box, phone-size verification, Bording Hub entry.
 
 ## Done earlier: "Excitement & depth" expansion (aims, jams, tactics, set bonuses, multipliers, relics, enemy editions…)
@@ -49,3 +49,7 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
 - Customers (js/customers.js pure; UI in backroom.js): meta.customers (max 3), meta.custSeq/custSeed/custDay. +1 per calendar day since
   last visit (capped) and +1 per finished run; they never leave on their own (no-FOMO per KB daily-return doc). 6 regulars with
   request preferences; big rewards sometimes paid as a Collector's Tin (opened free at home).
+- Vintage set (12 cards, data.js; engine ctx helpers rowStars/nextInst/fireWhere; set bonus ★2+ +2/hit, ★3 fire twice, special ed ×1.5).
+  Released via UNLOCKS 'vintage' (serve 5 customers) → banner + reveal modal (meta.flags.vintageReleased). Completing a binder set
+  page pays SET_REWARD 50 Credit once (meta.setsDone) and stars the tab. New icons fetched from game-icons raw GitHub (names appended in tools/build_icons.py).
+- Sim: BOX=id:ed:star,... brings Deck Box cards.

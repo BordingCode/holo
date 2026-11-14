@@ -1,8 +1,8 @@
 // HOLO — customers at the Back Room counter. Pure (no DOM).
 // Invitation, not obligation: customers never leave on their own, a missed day costs nothing,
 // and coming back after a while finds a small queue waiting (max 3).
-import { CARDS, CARD_LIST, SETS, EDITIONS } from './data.js?v=9';
-import { makeRng, hashStr } from './rng.js?v=9';
+import { CARDS, CARD_LIST, SETS, EDITIONS } from './data.js?v=10';
+import { makeRng, hashStr } from './rng.js?v=10';
 
 export const MAX_WAITING = 3;
 
@@ -11,7 +11,7 @@ export const REGULARS = {
   tobi:   { name: 'Tobi', tag: 'age 9, very serious', icon: 'fox-head', color: '#ffb35c', likes: ['set', 'set', 'card', 'star'],
             hi: ['Do you have any', 'My mum said I can get ONE'], bye: 'YES! Thank you!!' },
   penny:  { name: 'Mrs. Penny', tag: 'retired collector', icon: 'old-king', color: '#e8c3ff', likes: ['ed', 'card', 'set_ed', 'graded'],
-            hi: ['I\'m finishing a binder page', 'Dear, I\'m after'], bye: 'Lovely. Just lovely.' },
+            hi: ['I\'m finishing a binder page. I need', 'Dear, I\'m after'], bye: 'Lovely. Just lovely.' },
   coat:   { name: 'Trenchcoat', tag: 'asks no questions', icon: 'spectre', color: '#8ad8ff', likes: ['holo', 'rarity', 'set_ed', 'graded'],
             hi: ['Psst. Looking for', 'I pay well for'], bye: '…We never met.' },
   gwen:   { name: 'Grading Gwen', tag: 'carries a loupe', icon: 'raven', color: '#9fffcf', likes: ['graded', 'graded', 'star', 'ed'],
@@ -19,7 +19,7 @@ export const REGULARS = {
   brick:  { name: 'Brick', tag: 'plays every Friday', icon: 'black-knight-helm', color: '#ff8a8a', likes: ['star', 'rarity', 'set', 'card'],
             hi: ['Need something for my deck:', 'Tournament\'s Friday. I need'], bye: 'Friday\'s mine now.' },
   dot:    { name: 'Dot', tag: 'budget brawler', icon: 'hound', color: '#c9f27a', likes: ['card', 'set', 'card', 'star'],
-            hi: ['Got any cheap', 'Just need'], bye: 'You\'re the best, honestly.' },
+            hi: ['Anything going cheap? I need', 'Just need'], bye: 'You\'re the best, honestly.' },
 };
 
 const SPECIAL_EDS = ['foil', 'holo', 'gilded', 'misprint'];

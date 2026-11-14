@@ -1,5 +1,5 @@
 // HOLO persistence: meta-progress (binder, unlocks, heat) + the in-progress run.
-import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=9';
+import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=10';
 
 const META_KEY = 'holo.meta.v1', RUN_KEY = 'holo.run.v1';
 
@@ -109,6 +109,7 @@ export const UNLOCKS = [
   { id: 'gilded', kind: 'set', text: 'Gilded set joins the packs', req: 'Pull 18 different cards', test: () => distinctPulled() >= 18, prog: () => [distinctPulled(), 18] },
   { id: 'glint', kind: 'hero', text: 'Hero: Glint, the Fox Thief', req: 'Pull 25 different cards', test: () => distinctPulled() >= 25, prog: () => [distinctPulled(), 25] },
   { id: 'void', kind: 'set', text: 'Cursed Packs (Void set) appear in shops', req: 'Defeat The Collector (Act II boss)', test: () => meta.flags.beatCollector },
+  { id: 'vintage', kind: 'set', text: 'Vintage set released — in packs & shops', req: 'Serve 5 customers in the Back Room', test: () => (meta.served || 0) >= 5, prog: () => [Math.min(5, meta.served || 0), 5] },
   { id: 'heat', kind: 'heat', text: 'HEAT difficulty ladder', req: 'Win a run', test: () => meta.stats.wins > 0 },
 ];
 

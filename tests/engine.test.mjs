@@ -84,6 +84,17 @@ import { useTactic, setCounts } from '../js/engine.js';
 { const B = battle([card('jab')], ['tape_golem'], { relics: ['opening_salvo'] }); playRound(B); ok(dealt(B) === 8, 'opening salvo round 1'); }
 
 
+// ---- Vintage set ----
+{ const B = battle([card('jab'), card('jab', 'normal', 2), card('faded_print')]); playRound(B); ok(dealt(B) === 4 + 6 + 4, 'faded print: 1 per ★ (4 stars)'); }
+{ const B = battle([card('mint_condition'), card('jab', 'normal', 3)]); playRound(B); ok(dealt(B) === 16, 'mint condition: ★3 right fires twice'); }
+{ const B = battle([card('mint_condition'), card('jab')]); playRound(B); ok(dealt(B) === 8, 'mint condition: else +4'); }
+{ const B = battle([card('jab', 'normal', 3), card('the_archive')]); playRound(B); ok(dealt(B) === 16, 'archive refires ★3 card'); }
+{ const B = battle([card('holy_grail', 'normal', 2), card('jab', 'normal', 2)]); playRound(B); ok(dealt(B) === 10, 'grail ×1.75 when all ★2+ (jab★2=6)'); }
+{ const B = battle([card('faded_print'), card('faded_print')]); const n = setCounts(B.row); ok(n.vintage === 2, 'vintage set count'); playRound(B); ok(dealt(B) === 4, 'vintage-2 does not boost ★1'); }
+{ const B = battle([card('hardcover'), card('hardcover'), card('hardcover'), card('hardcover'), card('jab', 'normal', 3)]); playRound(B); ok(B.ev.filter(e => e.t === 'fire' && e.slot === 4).length === 2, 'vintage-4: ★3 fires twice'); ok(dealt(B) === 18, 'vintage-2: ★2+ cards +1 per hit'); }
+{ const h = card('heirloom'); const B = battle([h]); playRound(B); playRound(B); ok(h.grow === 2 && dealt(B) === 4, 'heirloom ticks up (round 2 deals 3+1)'); }
+{ const B = battle([card('golden_age'), card('jab')], ['tape_golem', 'tape_golem']); playRound(B); ok(B.ev.filter(e => e.t === 'dmg' && e.side === 'e').length >= 3, 'golden age hits all'); }
+
 // ---- merge rules: every edition pair ----
 {
   const EDS = ['normal', 'foil', 'holo', 'gilded', 'cracked', 'misprint'];
