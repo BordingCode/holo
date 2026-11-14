@@ -18,22 +18,22 @@ export function rngOf(run) {
 // ---- heat (difficulty ladder) ---------------------------------------------
 export const HEAT = [
   'Standard run.',
-  'Enemies have +10% HP.',
-  'Enemies hit 10% harder.',
+  'Enemies have +15% HP.',
+  'Enemies hit 15% harder.',
   'Fights pay 20% fewer coins.',
-  'Elites have +25% HP.',
+  'Elites and bosses have +25% HP.',
   'Start with 10% less max HP.',
-  'Packs cost 3 more.',
-  'Bosses start with +3 Strength.',
-  'Rest stops heal half as much.',
+  'Packs cost 3 more, and Act 2–3 enemies have +15% HP.',
+  'Bosses start with +5 Strength.',
+  'Rest stops heal half as much, and beating a boss heals only 25%.',
 ];
 
 export function enemyMods(run, kind) {
   const h = run.heat;
-  const ACT_HP = { 1: 1.1, 2: 1.35, 3: 1.6 }, ACT_DMG = { 1: 1.2, 2: 1.3, 3: 1.4 };
-  let hpMult = (ACT_HP[run.act] || 1) * (1 + (h >= 1 ? 0.1 : 0) + (kind === 'elite' && h >= 4 ? 0.25 : 0));
-  const dmgMult = (ACT_DMG[run.act] || 1) * (h >= 2 ? 1.1 : 1);
-  const str = kind === 'boss' && h >= 7 ? 3 : 0;
+  const ACT_HP = { 1: 1.2, 2: 1.9, 3: 2.6 }, ACT_DMG = { 1: 1.25, 2: 1.5, 3: 1.8 };
+  let hpMult = (ACT_HP[run.act] || 1) * (1 + (h >= 1 ? 0.15 : 0) + ((kind === 'elite' || kind === 'boss') && h >= 4 ? 0.25 : 0) + (h >= 6 && run.act >= 2 ? 0.15 : 0));
+  const dmgMult = (ACT_DMG[run.act] || 1) * (h >= 2 ? 1.15 : 1);
+  const str = kind === 'boss' && h >= 7 ? 5 : 0;
   return { hpMult, dmgMult, str };
 }
 
@@ -221,7 +221,7 @@ export function finishBattle(run, B) {
   if (kind === 'boss') {
     run.stats.bosses++;
     packs.push({ type: 'collector' });
-    const h = Math.round((run.maxHp - run.hp) * 0.6); run.hp += h; healed += h;
+    const h = Math.round((run.maxHp - run.hp) * (run.heat >= 8 ? 0.25 : 0.6)); run.hp += h; healed += h;
     relics = relicChoices(run, 3);
   }
   return { coins, interest, packs, shattered, healed, kind, tactic, relics };

@@ -17,14 +17,20 @@ He asked to keep improving until session usage runs out, and to use Fable (model
 - v1 (2026-11-11): full game — 59 cards/7 sets, editions, pack tear ritual, combo row, map, shop, grader, events,
   3 bosses, binder + unlocks, heroes, heat, daily. Polish pass (shelf backdrop, incoming readout, loot rays, foil tear).
 
-## In progress: "Excitement & depth" expansion (approved plan, Mathias said "go")
-1. [ ] Every-round decisions: enemy positional aims (STRIKE slot = hit + jam card; empty slot = miss; BLIND slot = that slot skips next round) + Tactics (one-shot tricks, hold 3, play between rounds)
-2. [ ] Set bonuses 2/4/6 (SET_BONUS in data.js), shown as glowing chips under the row
-3. [ ] Damage multipliers (x.amp), finishers, growing cards (inst.grow persists), Crescendo
-4. [ ] Relics (boss pick 1 of 3; treasure node per act pick 1 of 2), shop showcase card, Mythic meter (pity 40), elite loot shown on map
-5. [ ] Enemy editions (Foil/Holo/Gilded/Cracked), 19 new cards (data done), achievements → card backs
-- Data for all of the above is ALREADY in js/data.js (cards, SET_BONUS, TACTICS, RELICS, ENEMY_EDITIONS, ACHIEVEMENTS, CARD_BACKS) + icons rebuilt.
-- NEXT: rewrite js/engine.js to support it, then run.js, then UI, then sim/balance, test in browser, push.
+## In progress: "The Back Room" evolution (approved 2026-11-14, Mathias said "go")
+Direction: collection matters between runs. Decisions: die → brought Deck Box cards ALL shredded;
+grading = loupe minigame; collection cards may make runs easier but Deck Box size is capped (smaller at high Heat).
+- [ ] Stage 0: commit pending balance pass (enemy HP/dmg up).
+- [ ] Stage 1: merge rework — normal+special keeps special; two specials → player picks; Cracked never forced
+      (fresh copy resets cracks to 3); maxed ★3 can "Apply edition"; choose target copy; merge owned↔owned;
+      buttons preview result; exhaustive edition-combo tests. Same rules reused for the collection.
+- [ ] Stage 2: persistent collection (take home 3 on win / 1 on death) + Deck Box ante; meta save v2 migration.
+- [ ] Stage 3: Back Room hub — Credit currency, open sealed packs at home, grading slabs (loupe minigame), sell, upgrades.
+- [ ] Stage 4: customers & daily orders.
+- [ ] Stage 5: new set (~12 cards) + set release system; set-page completion cosmetics.
+- [ ] Stage 6: sim balance incl. Deck Box, phone-size verification, Bording Hub entry.
+
+## Done earlier: "Excitement & depth" expansion (aims, jams, tactics, set bonuses, multipliers, relics, enemy editions…)
 
 ## Later ideas
 - Fable playtest findings (agent running) → fold in.
