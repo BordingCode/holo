@@ -1,14 +1,14 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=10';
-import * as R from './run.js?v=10';
-import { hashStr } from './rng.js?v=10';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=10';
-import { packScreen } from './pack.js?v=10';
-import { backRoom, creditPill, runArrival, customersWaiting, SET_REWARD } from './backroom.js?v=10';
-import { battleScreen } from './battle.js?v=10';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=10';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=10';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull, boxCost, boxCapacity, addToCollection, removeFromCollection, takeHomeCount, runCredit } from './meta.js?v=10';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=11';
+import * as R from './run.js?v=11';
+import { hashStr } from './rng.js?v=11';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=11';
+import { packScreen } from './pack.js?v=11';
+import { backRoom, creditPill, runArrival, customersWaiting, SET_REWARD } from './backroom.js?v=11';
+import { battleScreen } from './battle.js?v=11';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=11';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=11';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull, boxCost, boxCapacity, addToCollection, removeFromCollection, takeHomeCount, runCredit } from './meta.js?v=11';
 
 const app = $('#app');
 initFx(app, $('#fx'));

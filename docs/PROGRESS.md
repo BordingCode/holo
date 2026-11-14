@@ -28,7 +28,7 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
 - [x] Stage 3: Back Room hub — Credit currency, open sealed packs at home, grading slabs (loupe minigame), sell, upgrades.
 - [x] Stage 4: customers & daily orders.
 - [x] Stage 5: new set (~12 cards) + set release system; set-page completion cosmetics.
-- [ ] Stage 6: sim balance incl. Deck Box, phone-size verification, Bording Hub entry.
+- [x] Stage 6: sim balance incl. Deck Box, phone-size verification, Bording Hub entry.
 
 ## Done earlier: "Excitement & depth" expansion (aims, jams, tactics, set bonuses, multipliers, relics, enemy editions…)
 
@@ -53,3 +53,6 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
   Released via UNLOCKS 'vintage' (serve 5 customers) → banner + reveal modal (meta.flags.vintageReleased). Completing a binder set
   page pays SET_REWARD 50 Credit once (meta.setsDone) and stars the tab. New icons fetched from game-icons raw GitHub (names appended in tools/build_icons.py).
 - Sim: BOX=id:ed:star,... brings Deck Box cards.
+- Balance 2026-11-14 (all 8 sets, 200 runs): Kip heat0 71.5%, Wick heat0 61.5%, Kip heat8 32%; Holo Golden Age in Deck Box ≈ +7pp.
+  ACT_HP {1.3, 2.15, 3.0}, ACT_DMG {1.3, 1.6, 1.95}. NOTE: sims with 2-set pools are meaningless (~100% win).
+- NEXT ideas: Mathias's phone feel test of the Back Room; more customers/regulars; a second released set; Deck Box choice for the bot sim.

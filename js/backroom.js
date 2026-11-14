@@ -1,14 +1,14 @@
 // HOLO — the Back Room: your card shop between runs.
 // Collection (sell / grade / merge / display), sealed packs bought with Credit, upgrades.
-import { CARDS, CARD_LIST, SET_ORDER, RARITY, EDITIONS, SETS, PACKS } from './data.js?v=10';
-import * as R from './run.js?v=10';
-import { h, $, icon, cardEl, toast, modal, zoomCard, doMerge, packName, idleShimmer } from './ui.js?v=10';
-import { packScreen } from './pack.js?v=10';
-import { sfx, music } from './audio.js?v=10';
-import { burst, centerOf, banner, shake, RARITY_FX } from './fx.js?v=10';
-import { meta, saveMeta, unlocked, unlockedSets, creditValue, GRADE_PRICE, HOME_PACKS, UPGRADES, buyUpgrade, displaySlots, displayIncome } from './meta.js?v=10';
-import { makeCustomer, arrivals, matches, requestText, REGULARS, dayNumber, MAX_WAITING } from './customers.js?v=10';
-import { GRADE_NAMES, centeringScore, surfaceScore, rollCorner, cornersScore, finalGrade } from './grade.js?v=10';
+import { CARDS, CARD_LIST, SET_ORDER, RARITY, EDITIONS, SETS, PACKS } from './data.js?v=11';
+import * as R from './run.js?v=11';
+import { h, $, icon, cardEl, toast, modal, zoomCard, doMerge, packName, idleShimmer } from './ui.js?v=11';
+import { packScreen } from './pack.js?v=11';
+import { sfx, music } from './audio.js?v=11';
+import { burst, centerOf, banner, shake, RARITY_FX } from './fx.js?v=11';
+import { meta, saveMeta, unlocked, unlockedSets, creditValue, GRADE_PRICE, HOME_PACKS, UPGRADES, buyUpgrade, displaySlots, displayIncome } from './meta.js?v=11';
+import { makeCustomer, arrivals, matches, requestText, REGULARS, dayNumber, MAX_WAITING } from './customers.js?v=11';
+import { GRADE_NAMES, centeringScore, surfaceScore, rollCorner, cornersScore, finalGrade } from './grade.js?v=11';
 
 let env; // { mount, back }
 const RR = { C: 0, U: 1, R: 2, M: 3 }, ER = { normal: 0, cracked: 1, misprint: 2, gilded: 3, foil: 4, holo: 5 };

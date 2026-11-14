@@ -1,8 +1,8 @@
 // HOLO — customers at the Back Room counter. Pure (no DOM).
 // Invitation, not obligation: customers never leave on their own, a missed day costs nothing,
 // and coming back after a while finds a small queue waiting (max 3).
-import { CARDS, CARD_LIST, SETS, EDITIONS } from './data.js?v=10';
-import { makeRng, hashStr } from './rng.js?v=10';
+import { CARDS, CARD_LIST, SETS, EDITIONS } from './data.js?v=11';
+import { makeRng, hashStr } from './rng.js?v=11';
 
 export const MAX_WAITING = 3;
 

@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=10';
-import { makeRng, hashStr } from './rng.js?v=10';
-import { createBattle, ROW_SIZE } from './engine.js?v=10';
+import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=11';
+import { makeRng, hashStr } from './rng.js?v=11';
+import { createBattle, ROW_SIZE } from './engine.js?v=11';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;
@@ -30,7 +30,7 @@ export const HEAT = [
 
 export function enemyMods(run, kind) {
   const h = run.heat;
-  const ACT_HP = { 1: 1.2, 2: 1.9, 3: 2.6 }, ACT_DMG = { 1: 1.25, 2: 1.5, 3: 1.8 };
+  const ACT_HP = { 1: 1.3, 2: 2.15, 3: 3.0 }, ACT_DMG = { 1: 1.3, 2: 1.6, 3: 1.95 };
   let hpMult = (ACT_HP[run.act] || 1) * (1 + (h >= 1 ? 0.15 : 0) + ((kind === 'elite' || kind === 'boss') && h >= 4 ? 0.25 : 0) + (h >= 6 && run.act >= 2 ? 0.15 : 0));
   const dmgMult = (ACT_DMG[run.act] || 1) * (h >= 2 ? 1.15 : 1);
   const str = kind === 'boss' && h >= 7 ? 5 : 0;
