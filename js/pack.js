@@ -1,10 +1,10 @@
 // The pack-opening ritual: tear → reveal (charged rares) → place your pulls.
-import { CARDS, RARITY, EDITIONS, PACKS, RARITY_RANK } from './data.js?v=5';
-import { h, $, icon, cardEl, mergeActions, attachTilt, idleShimmer, enableGyro, packColors, packName, packIcon, arranger, toast, detailSheet, pillCoins } from './ui.js?v=5';
-import { sfx } from './audio.js?v=5';
-import { burst, centerOf, shake, banner, RARITY_FX } from './fx.js?v=5';
-import { recordPull, saveMeta, meta } from './meta.js?v=5';
-import { sellValue, allOwned, mergeTargets, mergeOutcome } from './run.js?v=5';
+import { CARDS, RARITY, EDITIONS, PACKS, RARITY_RANK } from './data.js?v=7';
+import { h, $, icon, cardEl, mergeActions, attachTilt, idleShimmer, enableGyro, packColors, packName, packIcon, arranger, toast, detailSheet, pillCoins } from './ui.js?v=7';
+import { sfx } from './audio.js?v=7';
+import { burst, centerOf, shake, banner, RARITY_FX } from './fx.js?v=7';
+import { recordPull, saveMeta, meta } from './meta.js?v=7';
+import { sellValue, allOwned, mergeTargets, mergeOutcome } from './run.js?v=7';
 
 // result = {type, set, cards, tell, mustKeep}; ctx = {run, app, save, done()}
 export function packScreen(ctx, result, { skipTear = false } = {}) {
@@ -127,7 +127,7 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
           else if (def.r === 'R') shake();
           const rec = record(cur);
           pulls.push({ c, rec });
-          const owned = mergeTargets(run, c.id).some(t => mergeOutcome(t.c, c).useful);
+          const owned = !ctx.home && mergeTargets(run, c.id).some(t => mergeOutcome(t.c, c).useful);
           label.innerHTML = `<div class="rar" style="color:${RARITY[def.r].color}">${RARITY[def.r].name.toUpperCase()}</div>
             ${EDITIONS[c.ed].name ? `<div class="edn">${EDITIONS[c.ed].name} edition</div>` : ''}
             ${rec.isNew ? '<span class="new">NEW FOR YOUR BINDER</span>' : owned ? '<span class="new dupe">DUPLICATE — CAN MERGE</span>' : ''}`;
@@ -165,6 +165,7 @@ export function packScreen(ctx, result, { skipTear = false } = {}) {
 
   // ---------------- PLACE YOUR PULLS ----------------
   function trayPhase() {
+    if (ctx.home) return ctx.home(result); // opened in the Back Room: everything goes to the collection
     scr.innerHTML = '';
     // placed-flags live on the saved result so a reload can't duplicate cards
     result.placed ||= [];

@@ -117,6 +117,23 @@ import { useTactic, setCounts } from '../js/engine.js';
   const tg = R.mergeTargets(run, 'jab'); ok(tg[0].c.star === 2 && tg[tg.length - 1].c.star === 3, 'merge targets: unmaxed best first, maxed last');
 }
 
+// ---- grading ----
+import * as G from '../js/grade.js';
+ok(G.finalGrade({ centering: 10, surface: 10, corners: 10 }) === 10, 'perfect → 10');
+ok(G.finalGrade({ centering: 10, surface: 10, corners: 6 }) === 7, 'worst sub-grade caps at +1');
+ok(G.finalGrade({ centering: 9, surface: 9, corners: 9 }) === 9, 'all 9 → 9');
+ok(G.centeringScore(0.01) === 10 && G.centeringScore(-0.3) === 7 && G.centeringScore(0.9) === 5, 'centering bands');
+ok(G.surfaceScore(1) === 10 && G.surfaceScore(0.6) === 7 && G.surfaceScore(0) === 4, 'surface bands');
+{ let n10 = 0; for (let i = 0; i < 2000; i++) { const c = [0, 0, 0, 0].map(() => G.rollCorner()); if (G.finalGrade({ centering: 10, surface: 10, corners: G.cornersScore(c) }) === 10) n10++; }
+  ok(n10 > 0 && n10 < 400, 'gem mint is rare even with perfect play (' + n10 + '/2000)'); }
+
+// ---- deploy hygiene: every module import must carry the same ?v= (else two copies of a module load → split save state)
+{ const fs = await import('node:fs');
+  const vs = new Set(); let bad = [];
+  for (const f of fs.readdirSync('js')) { const src = fs.readFileSync('js/' + f, 'utf8');
+    for (const m of src.matchAll(/from '\.\/([\w-]+\.js)(\?v=\d+)?'/g)) { if (!m[2]) bad.push(f + '→' + m[1]); else vs.add(m[2]); } }
+  ok(!bad.length, 'unversioned imports: ' + bad.join(', ')); ok(vs.size <= 1, 'mixed import versions: ' + [...vs]); }
+
 function window_r(x) { return globalThis.__C[x.id].r; }
 
 console.log(`${pass} passed, ${fail} failed`);
