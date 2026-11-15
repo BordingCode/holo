@@ -1,9 +1,9 @@
 // Shared UI helpers: DOM builder, icons, card rendering, tilt/shine, arranger, modals.
-import { ICONS } from './icons.js?v=12';
-import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=12';
-import { cardText, cardValues, activeBonuses } from './engine.js?v=12';
-import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=12';
-import { sfx } from './audio.js?v=12';
+import { ICONS } from './icons.js?v=13';
+import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=13';
+import { cardText, cardValues, activeBonuses, growStage, growProgress, cardName, canGrow } from './engine.js?v=13';
+import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=13';
+import { sfx } from './audio.js?v=13';
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -38,10 +38,19 @@ function artIcon(name, set) {
 
 const CHIP_KEYS = [['d', '#ff8a9b'], ['b', '#7cc6ff'], ['burn', '#ff8a3d'], ['poi', '#9be15d'], ['h', '#6dffb0'], ['t', '#c7e07a'], ['n', '#ffffff'], ['c', '#ffd166']];
 
+// growth bar: fills toward Alt Art, then toward Full Art; gone once Full Art
+function growBar(inst) {
+  if (!canGrow(inst)) return '';
+  const g = growProgress(inst);
+  if (g.stage >= 2) return '';
+  return `<div class="xp s${g.stage}" title="Grows in your row: ${g.xp}/${g.need} to ${g.stage ? 'Full Art' : 'Alt Art'}"><i style="width:${Math.round(g.frac * 100)}%"></i></div>`;
+}
+
 // Render a card element. inst = {id, star, ed, mp}
 export function cardEl(inst, o = {}) {
   const def = CARDS[inst.id], set = SETS[def.set];
-  const el = h('div', { class: `card r-${def.r} ed-${inst.ed || 'normal'} set-${def.set}${o.mini ? ' mini' : ''}`, style: { '--sc': set.color, '--sc2': set.c2, ...(o.cw ? { '--cw': o.cw } : {}) } });
+  const st = growStage(inst), name = cardName(inst);
+  const el = h('div', { class: `card r-${def.r} ed-${inst.ed || 'normal'} set-${def.set}${o.mini ? ' mini' : ''}${st ? ' st-' + st : ''}`, style: { '--sc': set.color, '--sc2': set.c2, ...(o.cw ? { '--cw': o.cw } : {}) } });
   const stars = '★'.repeat(inst.star || 1);
   const ed = EDITIONS[inst.ed || 'normal'];
   let chip = '';
@@ -52,11 +61,12 @@ export function cardEl(inst, o = {}) {
   }
   const text = cardText(inst).replace(/^PASSIVE\./, '<b>PASSIVE.</b>').replace(/(\d+)/g, '<b>$1</b>');
   el.innerHTML = `<div class="ci"><div class="cf">
-      <div class="ch"><span class="cn">${def.name}</span>${(inst.star || 1) > 1 ? `<span class="cs">${stars}</span>` : ''}</div>
-      <div class="ca">${artIcon(def.icon, def.set)}</div>
+      <div class="ch"><span class="cn">${name}</span>${(inst.star || 1) > 1 ? `<span class="cs">${stars}</span>` : ''}</div>
+      <div class="ca">${artIcon(def.icon, def.set)}${st && !o.mini ? `<span class="stg">${st === 2 ? 'FULL ART' : 'ALT ART'}</span>` : ''}</div>
       <div class="ct"><span class="gem"></span>${set.name} · ${RARITY[def.r].name}</div>
       <div class="cx">${text}</div>
-      ${o.mini ? `<span class="mname">${def.name}</span>${(inst.star || 1) > 1 ? `<span class="cs">${stars}</span>` : ''}${chip}${def.passive ? '<span class="pas">PASSIVE</span>' : ''}` : ''}
+      ${growBar(inst)}
+      ${o.mini ? `<span class="mname">${name}</span>${(inst.star || 1) > 1 ? `<span class="cs">${stars}</span>` : ''}${chip}${def.passive ? '<span class="pas">PASSIVE</span>' : ''}` : ''}
     </div>
     ${ed.name ? `<span class="ced">${ed.name.toUpperCase()}${inst.ed === 'cracked' && inst.cracks ? ' ' + inst.cracks : ''}</span>` : ''}
     <div class="shine"></div><div class="glare"></div></div>`;
@@ -309,6 +319,14 @@ export function setChips(run, disabled = {}) {
   return el;
 }
 
+function growNote(c) {
+  if (!canGrow(c)) return 'Passive: does not grow.';
+  const g = growProgress(c), b = CARDS[c.id].bloom;
+  const extra = b && b.from === 2 && b.name ? ` → becomes <b>${b.name}</b>` : '';
+  if (g.stage >= 2) return '<b style="color:#ff4fd8">FULL ART</b> · fully grown (numbers ×1.6)';
+  return `${g.stage ? '<b style="color:#ffd166">ALT ART</b> (×1.3) · ' : ''}Grows in your row: <b>${g.xp}/${g.need}</b> to ${g.stage ? 'Full Art (×1.6)' + extra : 'Alt Art (×1.3)'}`;
+}
+
 export function detailSheet(c, actions = [], extraNote = '') {
   const def = CARDS[c.id];
   const ed = EDITIONS[c.ed || 'normal'];
@@ -316,8 +334,8 @@ export function detailSheet(c, actions = [], extraNote = '') {
   card.addEventListener('click', () => zoomCard(c));
   const acts = h('div', { class: 'acts' }, ...actions.map(a => h('button', { class: 'btn ' + (a.cls || 'small'), onclick: a.fn, disabled: a.disabled }, a.label)));
   return h('div', { class: 'detail' }, card, h('div', { class: 'info' },
-    h('div', { class: 'h2' }, def.name + ((c.star || 1) > 1 ? ' ' + '★'.repeat(c.star) : '')),
+    h('div', { class: 'h2' }, cardName(c) + ((c.star || 1) > 1 ? ' ' + '★'.repeat(c.star) : '')),
     h('div', { class: 't', html: cardText(c) }),
-    h('div', { class: 'm', html: `${SETS[def.set].name} · ${RARITY[def.r].name}${ed.desc ? ' · ' + ed.desc : ''}${extraNote ? '<br>' + extraNote : ''}` }),
+    h('div', { class: 'm', html: `${SETS[def.set].name} · ${RARITY[def.r].name}${ed.desc ? ' · ' + ed.desc : ''}<br>${growNote(c)}${extraNote ? '<br>' + extraNote : ''}` }),
     acts));
 }

@@ -592,3 +592,30 @@ button { font: inherit; color: inherit; }
 .merge-opt.risky small { color: #ff9a9a; font-weight: 700; }
 .merge-opt.risky { border-color: #ff8a8a55; }
 .merge-opt:not(.risky) { border-color: var(--gold); box-shadow: 0 0 14px #ffd16633; }
+
+/* ---- growth: Alt Art → Full Art ---- */
+.card .xp { position: relative; height: .26em; margin: 0 .45em .32em; border-radius: 1em; background: #ffffff14; overflow: hidden; flex: none; }
+.card .xp i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, var(--sc2), var(--sc), #fff); box-shadow: 0 0 .4em var(--sc); transition: width .5s ease-out; }
+.card .xp.s1 i { background: linear-gradient(90deg, #ff4fd8, #ffd166, #6dffb0); box-shadow: 0 0 .4em #ffd166; }
+.card.mini .xp { position: absolute; left: .45em; right: .45em; bottom: .22em; margin: 0; height: .3em; z-index: 4; }
+.card .stg { position: absolute; left: .3em; top: .3em; z-index: 2; font-family: var(--display); font-size: .45em; letter-spacing: .08em; padding: .12em .45em; border-radius: .5em; background: #000b; color: #fff; }
+/* Alt Art: the art window grows and a sunburst blooms behind the picture */
+.card.st-1 .ca { height: 58%; background: radial-gradient(circle at 50% 45%, #fff 0%, color-mix(in srgb, var(--sc) 80%, #fff) 14%, var(--sc) 34%, var(--sc2) 72%, #0a0814 100%); }
+.card.st-1 .ca::before, .card.st-2 .ca::before { opacity: .5; inset: -60%; background: repeating-conic-gradient(from 0deg, #ffffff40 0 8deg, transparent 8deg 20deg); animation: spin 26s linear infinite; mask: radial-gradient(circle, #000 15%, transparent 60%); -webkit-mask: radial-gradient(circle, #000 15%, transparent 60%); }
+.card.st-1 .ca svg { width: 80%; height: 80%; }
+.card.st-1 .stg { background: linear-gradient(90deg, var(--sc2), #000b); }
+/* Full Art: the picture breaks out of its window and fills the whole card */
+.card.st-2 .cf { background: radial-gradient(circle at 50% 34%, #fff 0%, color-mix(in srgb, var(--sc) 75%, #fff) 10%, var(--sc) 30%, var(--sc2) 62%, #07050f 100%); }
+.card.st-2 .ca { position: absolute; inset: 0; margin: 0; height: auto; border-radius: 0; background: none; box-shadow: none; align-items: start; padding-top: 12%; }
+.card.st-2 .ca svg { width: 92%; height: auto; aspect-ratio: 1; filter: drop-shadow(0 .2em .25em #000c) drop-shadow(0 0 .6em #fff6); }
+.card.st-2 .ch, .card.st-2 .ct, .card.st-2 .cx { position: relative; z-index: 2; }
+.card.st-2 .ch { background: linear-gradient(180deg, #000a, transparent); }
+.card.st-2 .ct { margin-top: auto; background: #000a; margin-inline: .3em; border-radius: .25em .25em 0 0; color: #fff; }
+.card.st-2 .cx { flex: none; min-height: 30%; margin-top: 0; border-radius: 0 0 .25em .25em; background: #0c0818d9; backdrop-filter: blur(2px); }
+.card.st-2 .stg { left: auto; right: .35em; top: 2.2em; background: linear-gradient(90deg, #ff4fd8, #ffd166, #6dffb0); color: #1a0d24; }
+.card.st-2 .ci { box-shadow: 0 0 .9em color-mix(in srgb, var(--sc) 70%, transparent), 0 .35em .9em #0009; }
+.card.mini.st-2 .ca { padding-top: 6%; }
+.card.mini.st-2 .ca svg { width: 84%; }
+/* the moment a card grows */
+.card.blooming .ci { animation: bloomPop .9s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes bloomPop { 0% { transform: scale(1); filter: brightness(1); } 30% { transform: scale(1.18); filter: brightness(2.2) saturate(1.6); } 100% { transform: scale(1); filter: brightness(1); } }

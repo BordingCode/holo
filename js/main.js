@@ -1,13 +1,13 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=12';
-import * as R from './run.js?v=12';
-import { hashStr } from './rng.js?v=12';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=12';
-import { packScreen } from './pack.js?v=12';
-import { battleScreen } from './battle.js?v=12';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=12';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=12';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=12';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=13';
+import * as R from './run.js?v=13';
+import { hashStr } from './rng.js?v=13';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=13';
+import { packScreen } from './pack.js?v=13';
+import { battleScreen } from './battle.js?v=13';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=13';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=13';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=13';
 
 const app = $('#app');
 initFx(app, $('#fx'));

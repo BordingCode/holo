@@ -1,5 +1,5 @@
 // HOLO persistence: meta-progress (binder, unlocks, heat) + the in-progress run.
-import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=12';
+import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=13';
 
 const META_KEY = 'holo.meta.v1', RUN_KEY = 'holo.run.v1';
 

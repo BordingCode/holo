@@ -119,5 +119,33 @@ import { useTactic, setCounts } from '../js/engine.js';
 
 function window_r(x) { return globalThis.__C[x.id].r; }
 
+// ---- growth: Alt Art / Full Art ----
+{
+  const { GROWTH, SETS } = await import('../js/data.js');
+  const { growStage, cardText, cardName, cardValues } = await import('../js/engine.js');
+  const j = card('jab'); const B = battle([j], ['tape_golem'], { hp: 999, maxHp: 999 });
+  B.enemies[0].hp = B.enemies[0].maxHp = 99999;
+  let fires = 0; for (let i = 0; i < 5; i++) fires += playRound(B).filter(e => e.t === 'fire' && e.uid === j.uid).length;
+  ok(fires >= 3 && j.xp === fires, 'a row card grows +1 each time it fires (fires ' + fires + ', xp ' + j.xp + ')');
+  const h = card('jab', 'holo'); const B2 = battle([h, card('overclock')], ['tape_golem']); B2.enemies[0].hp = 99999;
+  playRound(B2); ok(h.xp <= GROWTH.perRound, 'growth capped per round');
+  ok(growStage({ id: 'jab', xp: GROWTH.alt - 1 }) === 0 && growStage({ id: 'jab', xp: GROWTH.alt }) === 1 && growStage({ id: 'jab', xp: GROWTH.full }) === 2, 'stage thresholds');
+  ok(growStage({ id: 'phoenix', xp: 999 }) === 0, 'passives never grow');
+  ok(cardValues({ id: 'jab', xp: GROWTH.alt }).v.d === 5 && cardValues({ id: 'jab', xp: GROWTH.full }).v.d === 6, 'Alt ×1.3, Full ×1.6 (jab 4 → 5 → 6)');
+  ok(cardName({ id: 'jab', xp: GROWTH.full }) === 'Haymaker' && cardName({ id: 'jab', xp: GROWTH.alt }) === 'Jab', 'starter gets a named Full Art form');
+  ok(/Burn/.test(cardText({ id: 'wildfire', xp: GROWTH.alt })) && !/Then/.test(cardText({ id: 'wildfire' })), 'no-number cards get a bonus at Alt Art');
+  { const m = card('mirror'); m.xp = GROWTH.alt; const B3 = battle([card('jab'), m]); playRound(B3); ok(dealt(B3) === 11, 'Alt Art mirror: copy (4) + jab (4) + bloom 3 = 11, got ' + dealt(B3)); }
+  { // bench cards don't grow: only row instances
+    const b = card('jab'); const B4 = battle([card('jab')]); B4.bench = [b]; playRound(B4); ok(!b.xp, 'bench card does not grow'); }
+  { const B5 = battle([card('jab', 'normal', 1)], ['paper_clip'], { hp: 99, maxHp: 99 }); B5.enemies[0].hp = 1;
+    playRound(B5); ok(B5.row[0].xp === 1 + GROWTH.kill, 'kill gives extra growth'); }
+  { const run = R.newRun({ hero: 'kip', seed: 3 }); const t = run.row[0]; t.xp = 3; const a = { ...card('jab'), xp: 20 };
+    R.mergeInto(run, t, a); ok(t.xp === 20, 'merging keeps the bigger growth'); }
+  // every card has its own illustration, different from every set symbol
+  const icons = Object.values(CARDS).map(c => c.icon);
+  ok(new Set(icons).size === icons.length, 'every card has a unique illustration');
+  const glyphs = new Set(Object.values(SETS).map(s => s.glyph));
+  ok(Object.values(CARDS).every(c => !glyphs.has(c.icon)), 'no card art equals a set symbol');
+}
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

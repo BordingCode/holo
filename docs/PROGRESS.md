@@ -17,6 +17,19 @@ He asked to keep improving until session usage runs out, and to use Fable (model
 - v1 (2026-11-11): full game — 59 cards/7 sets, editions, pack tear ritual, combo row, map, shop, grader, events,
   3 bosses, binder + unlocks, heroes, heat, daily. Polish pass (shelf backdrop, incoming readout, loot rays, foil tear).
 
+## 2026-11-15 Shroom-and-Gloom blend (Mathias said "go"), plan: 1 growing cards · 2 room-by-room exploring · 3 mood pass
+- [x] Unique art: every card has its own icon, none equal a set glyph (test guards it). 18 new icons appended to js/icons.js
+      straight from the game-icons repo (NOT a full rebuild — stems exist under several authors).
+- [x] Step 1 growing cards: inst.xp; +1 per fire (max 3/round, B.xpRound) +2 per kill, ROW only, passives never.
+      GROWTH {alt 12, full 32}, GROW_MULT [1,1.3,1.6] folded into cardValues mult. data.js BLOOM: hand-made bonus for the 14
+      number-less cards (from Alt) + named Full Art for the 7 starters (Haymaker, Bastion, Grindstone, Inferno Fang, Bonfire,
+      Master Thief, Loaded Coin). Event 'bloom' → banner+burst in battle.js. Merge keeps max xp. CSS .st-1/.st-2, .xp bar.
+      SIM BUG FIXED: evalRow test-fired the REAL cards (inflated Trophy/Snowball growth for years) → now copies.
+      Sim knobs: GALT/GFULL/GMULT (tuned via engine re-export; data.js imported unversioned is a second copy!).
+      Rebalanced ACT_DMG {1.3, 1.85, 2.3}: Kip h0 70%, Wick h0 61.5%, Kip h8 35.5%. ~11% of row Alt at act 2, ~24% Full at end.
+- [ ] Step 2 room-by-room exploring (replace dot map with rooms + 2–3 hinted doors; node types kept).
+- [ ] Step 3 mood pass (flashlight light, ambience, per-act look).
+
 ## REMOVED 2026-11-15: "The Back Room" (Mathias found it weird → "just drop it")
 Code rolled back to 24bda6f (merge rework kept) + the tougher ACT_HP/ACT_DMG kept. Vintage set, Credit, collection, Deck Box,
 grading, customers all gone. meta.js drops old Back Room keys and discards saved runs holding unknown card ids.

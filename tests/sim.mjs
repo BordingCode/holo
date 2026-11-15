@@ -11,6 +11,7 @@ const ALLSETS = process.env.SETS ? process.env.SETS.split(',') : process.env.NEW
 
 // Score a row by test-firing it for 4 rounds against a training dummy.
 function evalRow(run, row) {
+  row = row.map(c => c && { ...c }); // practice on copies so growth / Trophy counters on the real cards are untouched
   const B = createBattle({ rng: makeRng(9), coins: run.coins, perk: 'none', hp: 999, maxHp: 999, row, relics: run.relics, enemies: ['tape_golem', 'dust_moth'], mods: { hpMult: 40 } });
   let dmg = 0, blk = 0;
   for (let r = 0; r < 4; r++) for (const e of playRound(B)) {
@@ -88,14 +89,23 @@ function play(run, kind) {
   return true;
 }
 
+// growth tuning knobs: GALT=12 GFULL=32 GMULT=1.3,1.6
+const { GROWTH, GROW_MULT } = await import('../js/engine.js');
+const { growStage } = await import('../js/engine.js');
+if (process.env.GALT) GROWTH.alt = +process.env.GALT;
+if (process.env.GFULL) GROWTH.full = +process.env.GFULL;
+if (process.env.GMULT) process.env.GMULT.split(',').forEach((m, k) => GROW_MULT[k + 1] = +m);
+const growAt = { 2: [0, 0, 0], 3: [0, 0, 0], end: [0, 0, 0] };
+const tallyGrow = (key, run) => run.row.filter(c => c && !CARDS[c.id].passive).forEach(c => growAt[key][growStage(c)]++);
 const res = { win: 0, deaths: {}, act: { 1: 0, 2: 0, 3: 0 }, floors: 0 };
 for (let i = 0; i < N; i++) {
   const run = R.newRun({ hero: HERO, heat: HEAT, seed: 1000 + i, unlockedSets: ALLSETS });
-  let guard = 0;
+  let guard = 0, lastAct = run.act;
   while (!run.over && guard++ < 200) {
     const opts = R.reachable(run).map(id => R.nodeById(run, id));
     const pref = { treasure: 6, shop: run.coins >= 20 ? 5 : 1, rest: 3, fight: 3, event: 2, grader: 2, elite: run.hp > run.maxHp * 0.6 ? 3 : 0, boss: 9 };
     opts.sort((a, b) => (pref[b.type] || 0) - (pref[a.type] || 0));
+    if (run.act !== lastAct) { lastAct = run.act; if (growAt[run.act]) tallyGrow(run.act, run); }
     const nd = R.enterNode(run, opts[0].id);
     res.act[run.act]++;
     if (nd.type === 'fight' || nd.type === 'elite' || nd.type === 'boss') {
@@ -121,11 +131,13 @@ for (let i = 0; i < N; i++) {
     }
     R.completeNode(run);
   }
-  res.floors += run.floor;
+  res.floors += run.floor; tallyGrow('end', run);
   if (process.env.SHOW && i < 6) console.log(run.over||'dead', 'act', run.act, 'floor', run.floor, 'coins', run.coins, run.row.map(c => c ? c.id + '★' + c.star + (c.ed !== 'normal' ? '(' + c.ed + ')' : '') : '-').join(' '));
   if (run.over === 'win') res.win++;
 }
 console.log(`hero=${HERO} heat=${HEAT} runs=${N}  WIN ${(100 * res.win / N).toFixed(1)}%  avg floor ${(res.floors / N).toFixed(1)}`);
 console.log('reached act2:', (100 * (N - Object.entries(res.deaths).filter(([k]) => k[0] === '1').reduce((s, [, v]) => s + v, 0)) / N).toFixed(0) + '%',
   ' act3:', (100 * (N - Object.entries(res.deaths).filter(([k]) => k[0] !== '3').reduce((s, [, v]) => s + v, 0)) / N).toFixed(0) + '%');
+const pct = a => { const t = a[0] + a[1] + a[2] || 1; return `print ${Math.round(100 * a[0] / t)}% / alt ${Math.round(100 * a[1] / t)}% / full ${Math.round(100 * a[2] / t)}%`; };
+console.log('row growth  start act2:', pct(growAt[2]), ' | start act3:', pct(growAt[3]), ' | end:', pct(growAt.end));
 console.log('deaths:', Object.entries(res.deaths).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join('  '));

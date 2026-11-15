@@ -49,7 +49,7 @@ const card = (set, id, name, r, icon, v, text, fire, extra = {}) =>
 
 // ---------- Starter ----------
 card('base', 'jab', 'Jab', 'C', 'punch', { d: 4 }, 'Deal {d}.', (x, v) => x.hit(v.d));
-card('base', 'guard', 'Guard', 'C', 'templar-shield', { b: 5 }, 'Gain {b} Block.', (x, v) => x.block(v.b));
+card('base', 'guard', 'Guard', 'C', 'checked-shield', { b: 5 }, 'Gain {b} Block.', (x, v) => x.block(v.b));
 card('base', 'whetstone', 'Whetstone', 'C', 'sharp-axe', { n: 3 }, 'The next card deals +{n} damage per hit.', (x, v) => x.buffNext(v.n, 1));
 card('base', 'patch', 'Patch Up', 'C', 'bandage-roll', { h: 3, b: 3 }, 'Heal {h}. Gain {b} Block.', (x, v) => { x.heal(v.h); x.block(v.b); });
 card('base', 'second_wind', 'Second Wind', 'U', 'whirlwind', { h: 6 }, 'Heal {h}. Cleanse your Burn and Poison.', (x, v) => { x.heal(v.h); x.cleanse(); });
@@ -88,7 +88,7 @@ card('iron', 'bulwark', 'Bulwark', 'R', 'locked-fortress', {}, 'PASSIVE. Your Bl
 card('iron', 'tortoise', 'Ancient Tortoise', 'M', 'turtle', { b: 6 }, 'PASSIVE. Gain {b} Block at the start of every round. Thorns deal double.', null, { passive: 'tortoise' });
 
 // ---------- Clockwork ----------
-card('clock', 'gear', 'Gear', 'C', 'cog', { d: 3, n: 2 }, 'Deal {d}. Gains +{n} damage each time it fires this fight.', (x, v) => { x.hit(v.d + x.mem.charge); x.mem.charge += v.n; });
+card('clock', 'gear', 'Gear', 'C', 'big-gear', { d: 3, n: 2 }, 'Deal {d}. Gains +{n} damage each time it fires this fight.', (x, v) => { x.hit(v.d + x.mem.charge); x.mem.charge += v.n; });
 card('clock', 'spring', 'Spring', 'C', 'bouncing-spring', { d: 3, n: 10 }, 'Deal {d}. If it\'s the first card to fire this round, deal {n} instead.', (x, v) => x.hit(x.firedBefore === 0 ? v.n : v.d));
 card('clock', 'metronome', 'Metronome', 'C', 'metronome', { d: 2 }, 'Deal {d} for each card fired before it this round.', (x, v) => x.hit(v.d * x.firedBefore));
 card('clock', 'mirror', 'Mirror', 'U', 'mirror-mirror', {}, 'Copy the card to the LEFT.', (x) => x.copyLeft());
@@ -114,7 +114,7 @@ card('gilded', 'jackpot', 'Jackpot', 'M', 'slot-machine', { d: 20 }, 'PASSIVE. E
 card('void', 'ritual_knife', 'Ritual Knife', 'C', 'dripping-knife', { n: 8, s: 2 }, 'Lose {s} HP. The next card deals +{n} damage per hit.', (x, v) => { x.selfDmg(v.s); x.buffNext(v.n, 1); }, { fixed: ['s'] });
 card('void', 'null_shard', 'Null Shard', 'C', 'shard-sword', { d: 7, s: 3 }, 'Deal {d} to ALL enemies. Lose {s} HP.', (x, v) => { x.hit(v.d, { all: true }); x.selfDmg(v.s); }, { fixed: ['s'] });
 card('void', 'hungry_maw', 'Hungry Maw', 'U', 'carnivore-mouth', { d: 14, s: 3 }, 'Deal {d}. Lose {s} HP.', (x, v) => { x.hit(v.d); x.selfDmg(v.s); }, { fixed: ['s'] });
-card('void', 'hollow', 'Hollow', 'U', 'portal', { d: 20 }, 'Deal {d}. The card to the RIGHT does not fire.', (x, v) => { x.hit(v.d); x.silenceRight(); });
+card('void', 'hollow', 'Hollow', 'U', 'hole', { d: 20 }, 'Deal {d}. The card to the RIGHT does not fire.', (x, v) => { x.hit(v.d); x.silenceRight(); });
 card('void', 'abyss_gaze', 'Abyss Gaze', 'U', 'all-seeing-eye', { n: 2, s: 3 }, 'Apply {n} Vulnerable to ALL enemies. Lose {s} HP.', (x, v) => { x.vuln(v.n, { all: true }); x.selfDmg(v.s); }, { fixed: ['s'] });
 card('void', 'blood_pact', 'Blood Pact', 'R', 'sacrificial-dagger', { d: 30, s: 7 }, 'Deal {d}. Lose {s} HP.', (x, v) => { x.hit(v.d); x.selfDmg(v.s); }, { fixed: ['s'] });
 card('void', 'echoing_void', 'Echoing Void', 'R', 'magic-portal', { s: 3 }, 'Copy the card to the LEFT twice. Lose {s} HP.', (x, v) => { x.copyLeft(); x.copyLeft(); x.selfDmg(v.s); }, { fixed: ['s'] });
@@ -123,25 +123,58 @@ card('void', 'hollow_king', 'The Hollow King', 'M', 'crowned-skull', {}, 'PASSIV
 // ---------- Expansion: multipliers, finishers, growth, cross-set ----------
 // x.amp(m) multiplies ALL damage for the rest of the round (stacks multiplicatively).
 // x.inst.grow is a permanent per-copy counter that survives the whole run.
-card('base', 'amplifier', 'Amplifier', 'U', 'trumpet', {}, 'All damage for the rest of this round ×{x}.', (x, v) => x.amp(v.x), { calc: (c) => ({ x: +(1.25 + 0.25 * (c.star || 1) + (c.ed === 'foil' ? 0.25 : 0) + (c.ed === 'cracked' ? 0.5 : 0)).toFixed(2) }) });
+card('base', 'amplifier', 'Amplifier', 'U', 'megaphone', {}, 'All damage for the rest of this round ×{x}.', (x, v) => x.amp(v.x), { calc: (c) => ({ x: +(1.25 + 0.25 * (c.star || 1) + (c.ed === 'foil' ? 0.25 : 0) + (c.ed === 'cracked' ? 0.5 : 0)).toFixed(2) }) });
 card('base', 'finale', 'Grand Finale', 'R', 'sparkles', { d: 3 }, 'Deal {d} for each card fired before it this round. Doubled if that\'s 5 or more.', (x, v) => { const n = x.firedBefore; x.hit(v.d * n * (n >= 5 ? 2 : 1)); });
 card('base', 'trophy', 'Trophy Hunter', 'U', 'horned-skull', { d: 5 }, 'Deal {d}{grow}. Each kill it lands adds +2 damage FOREVER.', (x, v) => x.hit(v.d + (x.inst.grow || 0), { trophy: true }), { grows: true });
 card('base', 'crescendo', 'Crescendo', 'M', 'star-swirl', {}, 'PASSIVE. Each card fired adds +15% damage to every card after it this round.', null, { passive: 'crescendo' });
-card('ember', 'flare', 'Flare', 'C', 'flame', { d: 4 }, 'Deal {d}. Triple damage if the target is Burning.', (x, v) => x.hit(x.target && x.target.burn > 0 ? v.d * 3 : v.d));
-card('ember', 'heat_sink', 'Heat Sink', 'U', 'fire-gem', {}, 'Gain Block equal to all Burn on all enemies.', (x) => x.block(Math.round(x.allEnemies().reduce((s, e) => s + e.burn, 0) * x.mult)));
-card('venom', 'venom_gland', 'Venom Gland', 'U', 'snake-tongue', { poi: 1 }, 'Apply {poi} Poison for each card fired before it this round.', (x, v) => x.poison(v.poi * x.firedBefore));
-card('venom', 'contagion', 'Contagion', 'R', 'virus', {}, 'Copy the target\'s Poison onto ALL other enemies.', (x) => { const t = x.target; if (t) for (const e of x.allEnemies()) if (e !== t) x.poison(t.poison, { unit: e }); });
-card('iron', 'iron_will', 'Iron Will', 'C', 'cross-shield', { b: 5, d: 8 }, 'Gain {b} Block. Then if you have 10+ Block, deal {d}.', (x, v) => { x.block(v.b); if (x.B.player.block >= 10) x.hit(v.d); });
-card('iron', 'snowball', 'Snowball', 'U', 'templar-shield', { b: 4 }, 'Gain {b}{grow} Block. Grows +1 FOREVER each time it fires (max +20).', (x, v) => { x.block(v.b + (x.inst.grow || 0)); x.grow(1, 20); }, { grows: true });
-card('iron', 'retaliate', 'Retaliate', 'R', 'spiked-armor', {}, 'Deal damage equal to 3× your Thorns.', (x) => x.hit(Math.round(x.B.player.thorns * 3 * x.mult)));
-card('clock', 'wind_up', 'Wind-Up', 'C', 'pendulum-swing', { d: 3, n: 2 }, 'Deal {d}, +{n} for every round of this fight so far.', (x, v) => x.hit(v.d + v.n * Math.min(8, x.B.round - 1)));
+card('ember', 'flare', 'Flare', 'C', 'distress-signal', { d: 4 }, 'Deal {d}. Triple damage if the target is Burning.', (x, v) => x.hit(x.target && x.target.burn > 0 ? v.d * 3 : v.d));
+card('ember', 'heat_sink', 'Heat Sink', 'U', 'thermometer-hot', {}, 'Gain Block equal to all Burn on all enemies.', (x) => x.block(Math.round(x.allEnemies().reduce((s, e) => s + e.burn, 0) * x.mult)));
+card('venom', 'venom_gland', 'Venom Gland', 'U', 'acid', { poi: 1 }, 'Apply {poi} Poison for each card fired before it this round.', (x, v) => x.poison(v.poi * x.firedBefore));
+card('venom', 'contagion', 'Contagion', 'R', 'biohazard', {}, 'Copy the target\'s Poison onto ALL other enemies.', (x) => { const t = x.target; if (t) for (const e of x.allEnemies()) if (e !== t) x.poison(t.poison, { unit: e }); });
+card('iron', 'iron_will', 'Iron Will', 'C', 'shield-bash', { b: 5, d: 8 }, 'Gain {b} Block. Then if you have 10+ Block, deal {d}.', (x, v) => { x.block(v.b); if (x.B.player.block >= 10) x.hit(v.d); });
+card('iron', 'snowball', 'Snowball', 'U', 'snowflake-2', { b: 4 }, 'Gain {b}{grow} Block. Grows +1 FOREVER each time it fires (max +20).', (x, v) => { x.block(v.b + (x.inst.grow || 0)); x.grow(1, 20); }, { grows: true });
+card('iron', 'retaliate', 'Retaliate', 'R', 'shield-reflect', {}, 'Deal damage equal to 3× your Thorns.', (x) => x.hit(Math.round(x.B.player.thorns * 3 * x.mult)));
+card('clock', 'wind_up', 'Wind-Up', 'C', 'key', { d: 3, n: 2 }, 'Deal {d}, +{n} for every round of this fight so far.', (x, v) => x.hit(v.d + v.n * Math.min(8, x.B.round - 1)));
 card('clock', 'cuckoo', 'Cuckoo', 'U', 'cuckoo-clock', {}, 'Fire the card to the RIGHT right now (it still fires again on its turn).', (x) => x.fireRight());
-card('clock', 'chain_reaction', 'Chain Reaction', 'R', 'gears', {}, 'For the rest of this round, every card fired counts as 2 for combo effects.', (x) => x.chain());
-card('gilded', 'tip_jar', 'Tip Jar', 'C', 'coins-pile', { c: 1 }, 'Gain {c} coin for every 2 cards fired before it.', (x, v) => x.coins(v.c * Math.floor(x.firedBefore / 2)));
-card('gilded', 'piggy_bank', 'Piggy Bank', 'U', 'gold-bar', { d: 40 }, 'Gain 1 coin and add 1 to the bank{grow}. At 10, SMASH: deal {d} to ALL and gain 10 coins.', (x, v) => { x.coins(1); x.grow(1, 10); if ((x.inst.grow || 0) >= 10) { x.inst.grow = 0; x.smash(v.d); x.coins(10); } }, { grows: true });
-card('gilded', 'prism', 'Prism', 'R', 'gems', {}, 'All damage this round ×1.25 for each special-edition card in your row.', (x) => { const n = x.countRowInst(c => c.ed && c.ed !== 'normal'); if (n) x.amp(Math.pow(1.25, n)); });
-card('void', 'siphon', 'Siphon', 'U', 'leeching-worm', { d: 9 }, 'Deal {d}. Heal half the damage it dealt.', (x, v) => { const dealt = x.hit(v.d); x.heal(Math.floor(dealt / 2)); });
-card('void', 'event_horizon', 'Event Horizon', 'R', 'magic-portal', { s: 5 }, 'Lose {s} HP. All damage for the rest of this round ×2.', (x, v) => { x.selfDmg(v.s); x.amp(2); }, { fixed: ['s'] });
+card('clock', 'chain_reaction', 'Chain Reaction', 'R', 'domino-tiles', {}, 'For the rest of this round, every card fired counts as 2 for combo effects.', (x) => x.chain());
+card('gilded', 'tip_jar', 'Tip Jar', 'C', 'mason-jar', { c: 1 }, 'Gain {c} coin for every 2 cards fired before it.', (x, v) => x.coins(v.c * Math.floor(x.firedBefore / 2)));
+card('gilded', 'piggy_bank', 'Piggy Bank', 'U', 'piggy-bank', { d: 40 }, 'Gain 1 coin and add 1 to the bank{grow}. At 10, SMASH: deal {d} to ALL and gain 10 coins.', (x, v) => { x.coins(1); x.grow(1, 10); if ((x.inst.grow || 0) >= 10) { x.inst.grow = 0; x.smash(v.d); x.coins(10); } }, { grows: true });
+card('gilded', 'prism', 'Prism', 'R', 'prism', {}, 'All damage this round ×1.25 for each special-edition card in your row.', (x) => { const n = x.countRowInst(c => c.ed && c.ed !== 'normal'); if (n) x.amp(Math.pow(1.25, n)); });
+card('void', 'siphon', 'Siphon', 'U', 'heart-drop', { d: 9 }, 'Deal {d}. Heal half the damage it dealt.', (x, v) => { const dealt = x.hit(v.d); x.heal(Math.floor(dealt / 2)); });
+card('void', 'event_horizon', 'Event Horizon', 'R', 'black-hole-bolas', { s: 5 }, 'Lose {s} HP. All damage for the rest of this round ×2.', (x, v) => { x.selfDmg(v.s); x.amp(2); }, { fixed: ['s'] });
+
+// ---------- Growth (Alt Art → Full Art) ----------
+// Every non-passive card in the ROW gains growth when it fires (+1, max 3 a round) and when it lands a
+// kill (+2). Bench cards don't grow. Alt Art: numbers ×1.3. Full Art: numbers ×1.6.
+// Cards with no numbers to scale get a hand-made bonus instead; the starters get a named Full Art form.
+export const GROWTH = { alt: 12, full: 32, perRound: 3, kill: 2 };
+export const GROW_MULT = [1, 1.3, 1.6];
+export const STAGE_NAMES = ['', 'Alt Art', 'Full Art'];
+const BLOOM = { // id: { from: stage it starts at, n: [_, at Alt, at Full], text: n => '', fire(x, n) }
+  wildfire:       { from: 1, n: [0, 3, 6], text: n => `Then apply ${n} Burn.`, fire: (x, n) => x.burn(n) },
+  shield_bash:    { from: 1, n: [0, 4, 8], text: n => `Then gain ${n} Block.`, fire: (x, n) => x.block(n) },
+  mirror:         { from: 1, n: [0, 3, 7], text: n => `Then deal ${n}.`, fire: (x, n) => x.hit(n) },
+  overclock:      { from: 1, n: [0, 4, 8], text: n => `Gain ${n} Block.`, fire: (x, n) => x.block(n) },
+  escapement:     { from: 1, n: [0, 4, 9], text: n => `Then deal ${n}.`, fire: (x, n) => x.hit(n) },
+  bribe:          { from: 1, n: [0, 1, 2], text: n => `Get ${n} coin${n > 1 ? 's' : ''} back.`, fire: (x, n) => x.coins(n) },
+  echoing_void:   { from: 1, n: [0, 2, 4], text: n => `Then heal ${n}.`, fire: (x, n) => x.heal(n) },
+  heat_sink:      { from: 1, n: [0, 2, 4], text: n => `Then apply ${n} Burn.`, fire: (x, n) => x.burn(n) },
+  contagion:      { from: 1, n: [0, 2, 4], text: n => `Then apply ${n} Poison.`, fire: (x, n) => x.poison(n) },
+  retaliate:      { from: 1, n: [0, 1, 3], text: n => `Then gain ${n} Thorns.`, fire: (x, n) => x.thorns(n) },
+  cuckoo:         { from: 1, n: [0, 3, 7], text: n => `Then deal ${n}.`, fire: (x, n) => x.hit(n) },
+  chain_reaction: { from: 1, n: [0, 4, 8], text: n => `Gain ${n} Block.`, fire: (x, n) => x.block(n) },
+  prism:          { from: 1, n: [0, 3, 6], text: n => `Deal ${n} to ALL.`, fire: (x, n) => x.hit(n, { all: true }) },
+  event_horizon:  { from: 1, n: [0, 2, 5], text: n => `Then heal ${n}.`, fire: (x, n) => x.heal(n) },
+  // the starters' named Full Art forms
+  jab:        { from: 2, name: 'Haymaker',     n: [0, 0, 1], text: n => `Apply ${n} Vulnerable.`, fire: (x, n) => x.vuln(n) },
+  guard:      { from: 2, name: 'Bastion',      n: [0, 0, 2], text: n => `Gain ${n} Thorns.`, fire: (x, n) => x.thorns(n) },
+  whetstone:  { from: 2, name: 'Grindstone',   n: [0, 0, 4], text: n => `Gain ${n} Block.`, fire: (x, n) => x.block(n) },
+  ember_fang: { from: 2, name: 'Inferno Fang', n: [0, 0, 3], text: n => `Apply ${n} Burn to ALL.`, fire: (x, n) => x.burn(n, { all: true }) },
+  kindling:   { from: 2, name: 'Bonfire',      n: [0, 0, 4], text: n => `Gain ${n} Block.`, fire: (x, n) => x.block(n) },
+  pickpocket: { from: 2, name: 'Master Thief', n: [0, 0, 2], text: n => `Gain ${n} more coins.`, fire: (x, n) => x.coins(n) },
+  coin_toss:  { from: 2, name: 'Loaded Coin',  n: [0, 0, 6], text: n => `Whatever the flip, deal ${n}.`, fire: (x, n) => x.hit(n) },
+};
+for (const [id, b] of Object.entries(BLOOM)) { const c = C.find(c => c.id === id); if (!c) throw new Error('bloom for unknown card ' + id); c.bloom = b; }
 
 export const CARDS = Object.fromEntries(C.map(c => [c.id, c]));
 export const CARD_LIST = C;

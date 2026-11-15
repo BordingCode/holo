@@ -16,7 +16,9 @@ black-knight-helm candle-flame fox-head
 two-coins heart-beats poison broken-shield broken-bone thorny-vine biceps flame
 crossed-swords horned-skull shop magnifying-glass campfire card-random card-draw padlock star-swirl swap-bag
 sparkles hourglass cuckoo-clock bright-explosion treasure-map open-treasure-chest ticket target-arrows locked-chest shopping-bag
-book-cover cardboard-box desk-lamp film-strip holy-grail laurel-crown open-book paint-brush photo-camera pocket-watch sands-of-time scroll-unfurled stamper""".split()
+book-cover cardboard-box desk-lamp film-strip holy-grail laurel-crown open-book paint-brush photo-camera pocket-watch sands-of-time scroll-unfurled stamper
+biohazard megaphone checked-shield snowflake-2 shield-reflect acid key black-hole-bolas heart-drop piggy-bank prism domino-tiles
+thermometer-hot shield-bash mason-jar distress-signal big-gear hole""".split()
 index = {}
 for p in root.rglob('*.svg'):
     index.setdefault(p.stem, p)

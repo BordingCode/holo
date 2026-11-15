@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=12';
-import { makeRng, hashStr } from './rng.js?v=12';
-import { createBattle, ROW_SIZE } from './engine.js?v=12';
+import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=13';
+import { makeRng, hashStr } from './rng.js?v=13';
+import { createBattle, ROW_SIZE } from './engine.js?v=13';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;
@@ -30,7 +30,7 @@ export const HEAT = [
 
 export function enemyMods(run, kind) {
   const h = run.heat;
-  const ACT_HP = { 1: 1.3, 2: 2.15, 3: 3.0 }, ACT_DMG = { 1: 1.3, 2: 1.6, 3: 1.95 };
+  const ACT_HP = { 1: 1.3, 2: 2.15, 3: 3.0 }, ACT_DMG = { 1: 1.3, 2: 1.85, 3: 2.3 };
   let hpMult = (ACT_HP[run.act] || 1) * (1 + (h >= 1 ? 0.15 : 0) + ((kind === 'elite' || kind === 'boss') && h >= 4 ? 0.25 : 0) + (h >= 6 && run.act >= 2 ? 0.15 : 0));
   const dmgMult = (ACT_DMG[run.act] || 1) * (h >= 2 ? 1.15 : 1);
   const str = kind === 'boss' && h >= 7 ? 5 : 0;
@@ -323,6 +323,7 @@ export function applyMerge(run, target, donor, choice = 0) {
   if (o.ed === 'misprint') target.mp = o.mp ?? 0; else delete target.mp;
   if (o.ed === 'cracked') target.cracks = 3; else delete target.cracks;
   if ((donor.grow || 0) > (target.grow || 0)) target.grow = donor.grow; // growing cards keep the bigger growth
+  if ((donor.xp || 0) > (target.xp || 0)) target.xp = donor.xp; // Alt/Full Art progress: keep the bigger one
   return { star: target.star, ed: target.ed };
 }
 

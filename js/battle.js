@@ -1,10 +1,10 @@
 // Battle screen: plan (rearrange, target) → FIGHT → animated event playback.
-import { CARDS, ENEMIES, HEROES, TACTICS, ENEMY_EDITIONS, RARITY } from './data.js?v=12';
-import { playRound, intentView, alive, useTactic } from './engine.js?v=12';
-import { h, $, $$, icon, arranger, toast, pillCoins, modal } from './ui.js?v=12';
-import { sfx, music } from './audio.js?v=12';
-import { burst, centerOf, floatText, shake, banner } from './fx.js?v=12';
-import { meta, saveMeta } from './meta.js?v=12';
+import { CARDS, ENEMIES, HEROES, TACTICS, ENEMY_EDITIONS, RARITY } from './data.js?v=13';
+import { playRound, intentView, alive, useTactic } from './engine.js?v=13';
+import { h, $, $$, icon, arranger, toast, pillCoins, modal } from './ui.js?v=13';
+import { sfx, music } from './audio.js?v=13';
+import { burst, centerOf, floatText, shake, banner } from './fx.js?v=13';
+import { meta, saveMeta } from './meta.js?v=13';
 
 const STATUS = [['burn', 'flame', '#ff8a3d'], ['poison', 'poison', '#9be15d'], ['vuln', 'broken-shield', '#ff6bd6'], ['weak', 'broken-bone', '#b8aee0'], ['str', 'biceps', '#ffb03a'], ['thorns', 'thorny-vine', '#c7e07a']];
 const SPECIAL_ICON = { shred: 'box-cutter', steal: 'old-king', copy: 'two-shadows', wrap: 'floating-ghost', pilfer: 'two-coins' };
@@ -301,6 +301,15 @@ export function battleScreen(ctx, B, kind) {
       case 'cardsDone': if (e.dmg >= 60) { const p = at(arena); floatText(p.x, p.y + 40, e.dmg + ' this round!', '#ffd166', true); } return delay(220);
       case 'roundEnd': renderIntents(); enemiesEl.classList.toggle('n3', alive(B).length >= 3); if (!B.pre || !B.pre.mult) multBadge.classList.remove('on'); arr.render(); return;
       case 'mult': { showMult(e.m); const s = e.slot != null ? slotEl(e.slot) : null; const p = at(s || arena); floatText(p.x, p.y - 44, '×' + e.by, '#ffd166', true); sfx.buff(); return delay(160); }
+      case 'bloom': {
+        arr.render();
+        const s = slotEl(e.slot), c = s && s.querySelector('.card');
+        if (c) { c.classList.add('blooming'); const p = at(c); burst(p.x, p.y, { count: e.stage === 2 ? 70 : 40, colors: e.stage === 2 ? ['#ff4fd8', '#ffd166', '#6dffb0', '#4cc9f0', '#fff'] : ['#ffd166', '#fff'], kind: 'confetti', speed: e.stage === 2 ? 8 : 6, lift: 2 }); }
+        sfx.reveal(e.stage === 2 ? 'M' : 'R');
+        banner(e.stageName.toUpperCase(), e.name + (e.stage === 2 ? ' is fully grown!' : ' grew!'), e.stage === 2 ? '#ff4fd8' : '#ffd166');
+        if (!meta.seenBloom) { meta.seenBloom = true; saveMeta(); setTimeout(() => toast('<b>Cards grow!</b> Every card in your row grows each time it fires. Alt Art = stronger, Full Art = strongest. Bench cards don\'t grow.', 5200), 1300); }
+        return delay(e.stage === 2 ? 1500 : 1100);
+      }
       case 'grow': { const s = e.slot != null ? slotEl(e.slot) : null; if (s) { const p = at(s); floatText(p.x, p.y - 30, `+${e.n} grows`, '#6dffb0'); } return delay(120); }
       case 'miss': { const s = slotEl(e.slot); const p = at(s || arena); floatText(p.x, p.y - 30, 'MISS!', '#6dffb0', true); sfx.blocked(); const el = foeEls[e.i]; if (el) { el.classList.remove('lunge'); void el.offsetWidth; el.classList.add('lunge'); } return delay(350); }
       case 'jam': {
