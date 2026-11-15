@@ -27,7 +27,11 @@ He asked to keep improving until session usage runs out, and to use Fable (model
       SIM BUG FIXED: evalRow test-fired the REAL cards (inflated Trophy/Snowball growth for years) → now copies.
       Sim knobs: GALT/GFULL/GMULT (tuned via engine re-export; data.js imported unversioned is a second copy!).
       Rebalanced ACT_DMG {1.3, 1.85, 2.3}: Kip h0 70%, Wick h0 61.5%, Kip h8 35.5%. ~11% of row Alt at act 2, ~24% Full at end.
-- [ ] Step 2 room-by-room exploring (replace dot map with rooms + 2–3 hinted doors; node types kept).
+- [x] Step 2 rooms: mapScreen → roomScreen (main.js). Same map graph underneath (sim/balance untouched). CSS one-point-perspective
+      room (.rm-scene: ceil/sides/floor rotateX checker/wall/lamp cone), a .door per reachable node (plaque icon = type,
+      light spill in type colour), tap = listen (hint line from DOOR_HINTS, seeded) → "Go through" = door swings + zoom into it.
+      Room names seeded per node (ROOM_NAMES per act; ENTRANCE before first node). Old map = floorPlan() modal (map icon in topbar).
+      Act palettes .room.act-1/2/3 (warm / cold glass / red).
 - [ ] Step 3 mood pass (flashlight light, ambience, per-act look).
 
 ## REMOVED 2026-11-15: "The Back Room" (Mathias found it weird → "just drop it")

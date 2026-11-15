@@ -619,3 +619,66 @@ button { font: inherit; color: inherit; }
 /* the moment a card grows */
 .card.blooming .ci { animation: bloomPop .9s cubic-bezier(.2, 1.6, .4, 1); }
 @keyframes bloomPop { 0% { transform: scale(1); filter: brightness(1); } 30% { transform: scale(1.18); filter: brightness(2.2) saturate(1.6); } 100% { transform: scale(1); filter: brightness(1); } }
+
+/* ---- rooms & doors (replaces the dot map) ---- */
+.room-screen .actbanner { position: relative; padding: 0 0 6px; }
+.room-name { font-size: 22px; }
+.iconbtn.plan svg { fill: #e6d6a8; }
+.plan-btn-unused { position: absolute; right: 12px; top: 2px; display: inline-flex; flex-direction: column; align-items: center; gap: 1px; border: 0; background: none; color: var(--muted); font: 800 9px var(--body); text-transform: uppercase; letter-spacing: .06em; cursor: pointer; }
+.plan-btn svg { width: 26px; height: 26px; fill: #d8c9a0; filter: drop-shadow(0 2px 3px #000a); }
+.map-scroll.plan { max-height: 52svh; flex: none; background: repeating-linear-gradient(0deg, #ffffff06 0 1px, transparent 1px 22px), #1a1528; border-radius: 12px; margin-top: 6px; }
+.room { --wall: #2b201c; --wall2: #1a1310; --floor1: #3a2c22; --floor2: #2a1f18; --light: #ffcf7a; --door: #5a3b26; --door2: #3a2416;
+  position: relative; flex: 1; min-height: 220px; margin: 0 10px 4px; border-radius: 18px; overflow: hidden; background: #050308; box-shadow: inset 0 0 0 1px #ffffff12; }
+.room.act-2 { --wall: #18222e; --wall2: #0e141c; --floor1: #2a3442; --floor2: #1b2230; --light: #c8f0ff; --door: #3d4a5c; --door2: #232c38; }
+.room.act-3 { --wall: #24121f; --wall2: #140a12; --floor1: #2c1622; --floor2: #1a0c14; --light: #ff5d73; --door: #4a2030; --door2: #2a0f1a; }
+.rm-scene { position: absolute; inset: 0; transform-origin: var(--ox, 50%) var(--oy, 60%); transition: transform .9s cubic-bezier(.55, 0, .75, .3); }
+.rm-scene > * { position: absolute; }
+.rm-ceil { inset: 0; clip-path: polygon(0 0, 100% 0, 82% 13%, 18% 13%); background: linear-gradient(180deg, #000, var(--wall2)); }
+.rm-side { inset: 0; }
+.rm-side.l { clip-path: polygon(0 0, 18% 13%, 18% 76%, 0 100%); background: repeating-linear-gradient(180deg, transparent 0 17%, #0009 17% 19%, #ffffff0a 19% 20%), linear-gradient(90deg, #000, var(--wall2)); }
+.rm-side.r { clip-path: polygon(100% 0, 82% 13%, 82% 76%, 100% 100%); background: repeating-linear-gradient(180deg, transparent 0 17%, #0009 17% 19%, #ffffff0a 19% 20%), linear-gradient(270deg, #000, var(--wall2)); }
+.rm-floor { left: 0; right: 0; top: 76%; bottom: 0; overflow: hidden; perspective: 140px; perspective-origin: 50% 0; clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%); }
+.rm-floor::before { content: ''; position: absolute; left: -60%; right: -60%; top: 0; height: 300%; transform-origin: 50% 0; transform: rotateX(62deg);
+  background: repeating-conic-gradient(var(--floor1) 0 25%, var(--floor2) 0 50%) 50% 0 / 44px 44px; }
+.rm-floor::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, #000a, transparent 40%, #000c); }
+.rm-wall { left: 18%; right: 18%; top: 13%; bottom: 24%; display: flex; align-items: flex-end; justify-content: space-evenly; gap: 4%; padding: 0 5%; perspective: 500px;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--light) 18%, transparent), transparent 70%), repeating-linear-gradient(90deg, #ffffff05 0 2px, transparent 2px 14px), linear-gradient(180deg, var(--wall), var(--wall2));
+  box-shadow: inset 0 -10px 18px #000a; }
+.lamp { left: 50%; top: 0; width: 2px; height: 9%; background: #000; transform: translateX(-50%); z-index: 3; }
+.lamp::before { content: ''; position: absolute; left: 50%; top: 100%; width: 26px; height: 10px; transform: translateX(-50%); border-radius: 14px 14px 3px 3px; background: #0d0a10; box-shadow: 0 6px 14px 2px var(--light); }
+.lamp::after { content: ''; position: absolute; left: 50%; top: calc(100% + 8px); width: 340px; height: 260px; transform: translateX(-50%); pointer-events: none;
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--light) 30%, transparent), transparent 65%); clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%); animation: lampFlicker 7s infinite; mix-blend-mode: screen; }
+@keyframes lampFlicker { 0%, 40%, 44%, 100% { opacity: .9; } 41%, 43% { opacity: .35; } 42% { opacity: .75; } 70% { opacity: .8; } }
+.rm-dark { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse 70% 65% at 50% 52%, transparent 35%, #000b 85%, #000 100%); transition: background .9s, opacity .9s; z-index: 5; }
+/* doors */
+.door { position: relative; flex: 0 1 30%; max-width: 74px; height: 84%; border: 0; padding: 0; background: none; cursor: pointer; transform-style: preserve-3d; -webkit-tap-highlight-color: transparent; }
+.door.boss { flex-basis: 52%; max-width: 150px; height: 92%; }
+.door .d-in { position: absolute; inset: 0; border-radius: 6px 6px 0 0; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(circle at 50% 55%, #fff 0%, var(--nc) 30%, color-mix(in srgb, var(--nc) 30%, #000) 75%); box-shadow: inset 0 0 0 3px #0008; }
+.door .d-in svg { width: 60%; height: 60%; fill: #1a0d24; opacity: .85; }
+.door .d-leaf { position: absolute; inset: 0; border-radius: 6px 6px 0 0; transform-origin: 0 50%; transition: transform .55s cubic-bezier(.3, 1.2, .5, 1);
+  background: linear-gradient(90deg, #0004, transparent 20%, #ffffff10 50%, transparent 80%, #0005), repeating-linear-gradient(180deg, transparent 0 30%, #0003 30% 31%), linear-gradient(180deg, var(--door), var(--door2));
+  box-shadow: inset 0 0 0 3px #0007, inset 0 0 0 5px #ffffff0c, 0 0 0 3px #0008; }
+.door .d-plaque { position: absolute; left: 50%; top: 14%; width: 56%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; display: grid; place-items: center;
+  background: #0009; box-shadow: 0 0 0 2px color-mix(in srgb, var(--nc) 60%, transparent), 0 0 14px color-mix(in srgb, var(--nc) 45%, transparent); }
+.door .d-plaque svg { width: 66%; height: 66%; fill: var(--nc); filter: drop-shadow(0 0 4px var(--nc)); }
+.door .d-knob { position: absolute; right: 12%; top: 55%; width: 7px; height: 7px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6, #c9a35a 40%, #5a4220); }
+.door.boss .d-leaf2 { position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: #000a; }
+.door.boss .d-plaque { width: 34%; top: 10%; }
+.door .d-spill { position: absolute; left: -20%; right: -20%; bottom: -8px; height: 14px; background: radial-gradient(ellipse at 50% 30%, var(--nc), transparent 70%); opacity: .75; animation: spill 3.2s ease-in-out infinite; pointer-events: none; }
+@keyframes spill { 50% { opacity: .4; } }
+.door.sel .d-leaf { transform: rotateY(-42deg); }
+.door.sel { filter: drop-shadow(0 0 10px var(--nc)); }
+.door.sel .d-spill { opacity: 1; height: 22px; }
+.door.open .d-leaf { transform: rotateY(-105deg); transition-duration: .5s; }
+.room.going .rm-scene { transform: scale(4.2); }
+.room.going .rm-dark { background: radial-gradient(circle at var(--ox) var(--oy), transparent 0, #000 60%); }
+.door-info { min-height: 92px; padding: 6px 18px 8px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.di-type { display: inline-flex; align-items: center; gap: 6px; font-family: var(--display); font-size: 20px; flex-wrap: wrap; justify-content: center; }
+.di-type svg { width: 22px; height: 22px; fill: currentColor; }
+.di-type .loottag { position: static; font-size: 10px; }
+.di-hint { color: var(--muted); font-style: italic; font-size: 14px; }
+.di-hint b { color: #fff; font-style: normal; }
+.di-go { padding: 9px 26px; font-size: 17px; margin-top: 2px; }
+.di-type .loottag { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; font: 900 10px var(--body); letter-spacing: .05em; text-transform: uppercase; color: var(--k); background: #0d0a1ccc; border: 1px solid color-mix(in srgb, var(--k) 50%, transparent); padding: 2px 6px 2px 4px; border-radius: 8px; }
+.di-type .loottag svg { width: 12px; height: 12px; fill: var(--k); }
