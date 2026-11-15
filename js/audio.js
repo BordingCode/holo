@@ -101,6 +101,21 @@ export const sfx = {
   buy() { tone(midi(84), { dur: 0.06, vol: 0.12, type: 'square', filter: 3000 }); tone(midi(91), { t: 0.06, dur: 0.06, vol: 0.12, type: 'square', filter: 3000 }); noise({ t: 0.1, dur: 0.15, vol: 0.12, freq: 5000, type: 'highpass' }); },
   drum(i) { tone(160 + i * 6, { dur: 0.08, vol: 0.18, type: 'sine', slide: 0.5 }); noise({ dur: 0.04, vol: 0.08, freq: 2500 }); },
   jackpot() { for (let i = 0; i < 12; i++) tone(midi(penta(i + 5, 69)), { t: i * 0.04, dur: 0.15, vol: 0.1, type: 'square', filter: 5000 }); },
+  // listening at a door: each kind of room sounds different
+  listen(type) {
+    const L = {
+      fight: () => { for (let i = 0; i < 5; i++) noise({ t: i * 0.09 + Math.random() * 0.04, dur: 0.05, vol: 0.09, freq: 2600 + Math.random() * 1800, q: 3 }); },
+      elite: () => { tone(62, { dur: 0.9, vol: 0.22, type: 'sawtooth', filter: 260, slide: 0.8, attack: 0.15 }); noise({ dur: 0.8, vol: 0.06, freq: 300, type: 'lowpass' }); },
+      shop: () => { bell(88, 0, 0.12, 0.7); bell(84, 0.16, 0.1, 0.9); },
+      rest: () => { tone(1650, { dur: 1.1, vol: 0.025, type: 'sine', slide: 1.08, attack: 0.4 }); bell(64, 0.1, 0.06, 1.4); bell(69, 0.35, 0.05, 1.4); },
+      grader: () => { tone(2637, { dur: 0.35, vol: 0.06, type: 'sine' }); tone(3520, { t: 0.08, dur: 0.4, vol: 0.04, type: 'sine' }); },
+      event: () => { tone(300, { dur: 0.9, vol: 0.06, type: 'triangle', slide: 1.9, attack: 0.2 }); tone(318, { dur: 0.9, vol: 0.05, type: 'triangle', slide: 0.55, attack: 0.2 }); },
+      treasure: () => { [0, 2, 4, 5, 7].forEach((k, i) => tone(midi(penta(k + 10, 69)), { t: i * 0.05, dur: 0.25, vol: 0.05, type: 'triangle' })); },
+      boss: () => { [0, 0.45].forEach(t => { tone(52, { t, dur: 0.5, vol: 0.35, type: 'sine', slide: 0.5 }); noise({ t, dur: 0.25, vol: 0.12, freq: 180, type: 'lowpass' }); }); },
+    };
+    (L[type] || L.event)();
+  },
+  creak() { tone(140, { dur: 0.55, vol: 0.05, type: 'sawtooth', slide: 1.6, filter: 900, attack: 0.08 }); tone(190, { t: 0.18, dur: 0.4, vol: 0.035, type: 'sawtooth', slide: 0.7, filter: 800 }); noise({ t: 0.35, dur: 0.5, vol: 0.08, freq: 600, type: 'lowpass', sweep: 3 }); },
   phase() { tone(55, { dur: 1.6, vol: 0.4, type: 'sawtooth', filter: 300 }); noise({ dur: 1.2, vol: 0.2, freq: 200, type: 'lowpass' }); },
 };
 
@@ -110,6 +125,10 @@ const PROGS = {
   calm: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]],
   fight: [[57, 60, 64], [57, 60, 65], [53, 57, 60], [52, 56, 59]],
   boss: [[45, 48, 52], [46, 50, 53], [45, 48, 52], [44, 47, 52]],
+  // exploring the dark shop: slow, low, sparse — a little uneasy
+  explore1: [[45, 48, 52], [41, 45, 48], [43, 47, 50], [40, 43, 47]],
+  explore2: [[44, 47, 51], [40, 44, 47], [42, 45, 49], [44, 47, 50]],
+  explore3: [[42, 45, 49], [43, 46, 49], [42, 45, 48], [41, 44, 48]],
 };
 export function music(mode) {
   if (musicMode === mode) return;
@@ -117,13 +136,23 @@ export function music(mode) {
   clearInterval(musicTimer); musicTimer = null;
   if (!mode || !ctx) return;
   const prog = PROGS[mode] || PROGS.calm;
-  const bpm = mode === 'boss' ? 104 : mode === 'fight' ? 92 : 72;
+  const explore = mode.startsWith('explore');
+  const bpm = mode === 'boss' ? 104 : mode === 'fight' ? 92 : explore ? 56 : 72;
   const beat = 60 / bpm / 2; // 8th notes
   step = 0;
   const tick = () => {
     if (!ctx || ctx.state !== 'running') return;
     const bar = Math.floor(step / 8) % prog.length, b = step % 8;
     const chord = prog[bar];
+    if (explore) {
+      if (b === 0) chord.forEach(n => tone(midi(n), { dur: beat * 9, vol: 0.045, type: 'sawtooth', attack: 1.2, filter: 420, bus: musicBus }));
+      if (b === 0) tone(midi(chord[0] - 12), { dur: beat * 8, vol: 0.12, type: 'sine', attack: 0.5, bus: musicBus });
+      if (Math.random() < 0.16) tone(midi(chord[Math.floor(Math.random() * 3)] + 24), { dur: beat * 3, vol: 0.022, type: 'sine', attack: 0.05, bus: musicBus }); // a far-off chime
+      if (mode === 'explore2' && b === 0) tone(120, { dur: beat * 8, vol: 0.012, type: 'square', filter: 400, bus: musicBus }); // fluorescent hum
+      if (mode === 'explore3' && b === 6 && Math.random() < 0.5) { tone(48, { dur: 0.4, vol: 0.12, type: 'sine', slide: 0.6, bus: musicBus }); } // a thump somewhere
+      if (Math.random() < 0.03) noise({ dur: 0.6, vol: 0.025, freq: 500, type: 'lowpass', sweep: 2.5 }); // a creak
+      step++; return;
+    }
     if (b === 0) chord.forEach(n => tone(midi(n), { dur: beat * 8.5, vol: 0.05, type: 'sawtooth', attack: 0.4, filter: mode === 'boss' ? 900 : 700, bus: musicBus }));
     if (b === 0) tone(midi(chord[0] - 12), { dur: beat * 4, vol: 0.14, type: 'sine', bus: musicBus });
     if (mode !== 'calm' && b === 4) tone(midi(chord[0] - 12), { dur: beat * 3, vol: 0.1, type: 'sine', bus: musicBus });

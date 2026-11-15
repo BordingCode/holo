@@ -1,7 +1,7 @@
 // HOLO service worker: network-first (always fresh when online), cache fallback offline.
-const CACHE = 'holo-v15';
-const CORE = ['./', 'index.html', 'css/style.css?v=15', 'js/main.js?v=15', 'js/data.js?v=15', 'js/engine.js?v=15', 'js/run.js?v=15', 'js/rng.js?v=15', 'js/ui.js?v=15',
-  'js/pack.js?v=15', 'js/battle.js?v=15', 'js/audio.js?v=15', 'js/fx.js?v=15', 'js/meta.js?v=15', 'js/icons.js?v=15', 'assets/fonts/lilita.woff2', 'assets/fonts/nunito.woff2',
+const CACHE = 'holo-v16';
+const CORE = ['./', 'index.html', 'css/style.css?v=16', 'js/main.js?v=16', 'js/data.js?v=16', 'js/engine.js?v=16', 'js/run.js?v=16', 'js/rng.js?v=16', 'js/ui.js?v=16',
+  'js/pack.js?v=16', 'js/battle.js?v=16', 'js/audio.js?v=16', 'js/fx.js?v=16', 'js/meta.js?v=16', 'js/icons.js?v=16', 'assets/fonts/lilita.woff2', 'assets/fonts/nunito.woff2',
   'assets/icon-192.png', 'assets/icon-512.png', 'manifest.webmanifest'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => fetch(u, { cache: 'reload' }).then(r => r.ok && c.put(u, r)).catch(() => {})))).then(() => self.skipWaiting()));

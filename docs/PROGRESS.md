@@ -32,7 +32,11 @@ He asked to keep improving until session usage runs out, and to use Fable (model
       light spill in type colour), tap = listen (hint line from DOOR_HINTS, seeded) → "Go through" = door swings + zoom into it.
       Room names seeded per node (ROOM_NAMES per act; ENTRANCE before first node). Old map = floorPlan() modal (map icon in topbar).
       Act palettes .room.act-1/2/3 (warm / cold glass / red).
-- [ ] Step 3 mood pass (flashlight light, ambience, per-act look).
+- [x] Step 3 mood: flashlight(room) (pointer / gyro / idle drift, lerped CSS vars --lx/--ly on .rm-dark; aims at a tapped door),
+      seeded silhouette props (PROPS per act, 3 of 6 spots), sfx.listen(type) per door type + sfx.creak on walking through,
+      music modes explore1/2/3 (slow low pads, chimes, act2 hum, act3 thumps), battle screen gets .battle-act-N lighting.
+      Room .lamp CSS is scoped to .room (battle has its own .lamp!). Prop icons re-added to icons.js (were Vintage-era).
+- NEXT ideas: Mathias's phone feel test; maybe door variety per type (shop door with window, boss door chains).
 
 ## REMOVED 2026-11-15: "The Back Room" (Mathias found it weird → "just drop it")
 Code rolled back to 24bda6f (merge rework kept) + the tougher ACT_HP/ACT_DMG kept. Vintage set, Credit, collection, Deck Box,
