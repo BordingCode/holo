@@ -17,7 +17,13 @@ He asked to keep improving until session usage runs out, and to use Fable (model
 - v1 (2026-11-11): full game — 59 cards/7 sets, editions, pack tear ritual, combo row, map, shop, grader, events,
   3 bosses, binder + unlocks, heroes, heat, daily. Polish pass (shelf backdrop, incoming readout, loot rays, foil tear).
 
-## In progress: "The Back Room" evolution (approved 2026-11-14, Mathias said "go")
+## REMOVED 2026-11-15: "The Back Room" (Mathias found it weird → "just drop it")
+Code rolled back to 24bda6f (merge rework kept) + the tougher ACT_HP/ACT_DMG kept. Vintage set, Credit, collection, Deck Box,
+grading, customers all gone. meta.js drops old Back Room keys and discards saved runs holding unknown card ids.
+Sim after removal: Kip heat0 63%. Next direction: blend in Shroom-and-Gloom ideas (moody room-by-room exploring + growing cards)
+without losing HOLO's core (packs, editions, the firing row).
+
+### (historical) "The Back Room" evolution (approved 2026-11-14)
 Direction: collection matters between runs. Decisions: die → brought Deck Box cards ALL shredded;
 grading = loupe minigame; collection cards may make runs easier but Deck Box size is capped (smaller at high Heat).
 - [x] Stage 0: commit pending balance pass (enemy HP/dmg up).

@@ -1,14 +1,13 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=11';
-import * as R from './run.js?v=11';
-import { hashStr } from './rng.js?v=11';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=11';
-import { packScreen } from './pack.js?v=11';
-import { backRoom, creditPill, runArrival, customersWaiting, SET_REWARD } from './backroom.js?v=11';
-import { battleScreen } from './battle.js?v=11';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=11';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=11';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull, boxCost, boxCapacity, addToCollection, removeFromCollection, takeHomeCount, runCredit } from './meta.js?v=11';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=12';
+import * as R from './run.js?v=12';
+import { hashStr } from './rng.js?v=12';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=12';
+import { packScreen } from './pack.js?v=12';
+import { battleScreen } from './battle.js?v=12';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=12';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=12';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=12';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -25,7 +24,7 @@ applySettings();
 addEventListener('pointerdown', () => unlockAudio(), { capture: true });
 
 function mount(scr) {
-  $$('.screen, .modal-bg, .zoom, .banner, .float, .grader', app).forEach(e => e.remove());
+  $$('.screen, .modal-bg, .zoom, .banner, .float', app).forEach(e => e.remove());
   app.append(scr);
 }
 const save = () => { if (run) saveRun(run); };
@@ -53,7 +52,6 @@ function title() {
   menu.append(h('button', { class: 'btn', onclick: () => { sfx.tap(); if (run && !run.over) confirmAbandon(() => heroSelect(false)); else heroSelect(false); } }, 'New Run'));
   const dk = todayKey(); const dres = meta.daily[dk];
   menu.append(h('button', { class: 'btn alt', onclick: () => { sfx.tap(); if (run && !run.over) confirmAbandon(() => startDaily()); else startDaily(); } }, dres ? `Daily Run — best: ${dres.win ? 'WON' : 'floor ' + dres.floor}` : 'Daily Run'));
-  menu.append(h('button', { class: 'btn backroom-btn', onclick: () => { sfx.tap(); openBackRoom(); }, html: `${icon('shop')}<span>The Back Room</span><em>${icon('gems')}${meta.credit} · ${meta.collection.length} cards${customersWaiting() ? ` · ${customersWaiting()} waiting` : ''}</em>` }));
   menu.append(h('div', { style: { display: 'flex', gap: '10px' } },
     h('button', { class: 'btn ghost', style: { flex: '1' }, onclick: () => { sfx.tap(); binder(); } }, `Binder ${distinctPulled()}/${CARD_LIST.length}`),
     h('button', { class: 'btn ghost', style: { flex: 'none', padding: '0 16px' }, onclick: settings, html: icon('gears') + '' }) ));
@@ -63,19 +61,11 @@ function title() {
   mount(scr);
 }
 
-function openBackRoom() { backRoom({ mount, back: title }); }
-
 function confirmAbandon(then) {
-  const m = modal([h('div', { class: 'h2' }, 'Abandon your run?'), h('p', { class: 'sub', html: 'Your current run will count as a loss.' + (run && R.boxedSurvivors(run).length ? ' <b style="color:#ff8a8a">Your Deck Box cards will be shredded.</b>' : '') }),
+  const m = modal([h('div', { class: 'h2' }, 'Abandon your run?'), h('p', { class: 'sub' }, 'Your current run will count as a loss.'),
     h('div', { style: { display: 'flex', gap: '10px', 'margin-top': '10px' } },
       h('button', { class: 'btn ghost', style: { flex: '1' }, onclick: () => m.close() }, 'Keep it'),
       h('button', { class: 'btn', style: { flex: '1' }, onclick: () => { m.close(); run.over = 'lose'; recordRunEnd(false); run = null; clearRun(); then(); } }, 'Abandon'))]);
-}
-
-// Collection sorted best-first: rarity, stars, edition.
-function sortedCollection() {
-  const RR = { C: 0, U: 1, R: 2, M: 3 }, ER = { normal: 0, cracked: 1, misprint: 2, gilded: 3, foil: 4, holo: 5 };
-  return meta.collection.slice().sort((a, b) => (RR[CARDS[b.id].r] - RR[CARDS[a.id].r]) || (b.star - a.star) || (ER[b.ed] - ER[a.ed]) || CARDS[a.id].name.localeCompare(CARDS[b.id].name));
 }
 
 // ===========================================================================
@@ -87,9 +77,6 @@ function heroSelect() {
   const top = h('div', { class: 'topbar' }, h('button', { class: 'iconbtn', onclick: () => { sfx.back(); title(); }, html: icon('anticlockwise-rotation') }), h('span', { class: 'h1' }, 'Choose a hero'));
   const list = h('div', { class: 'heroes' });
   const heatBox = h('div');
-  const boxEl = h('div');
-  let box = []; // collection cids
-  const boxUsed = () => box.reduce((s, cid) => { const k = meta.collection.find(k => k.cid === cid); return s + (k ? boxCost(k) : 0); }, 0);
   const startBtn = h('button', { class: 'btn gold', style: { margin: '14px 16px calc(14px + env(safe-area-inset-bottom))' } }, 'Start run');
   function render() {
     list.innerHTML = '';
@@ -112,57 +99,14 @@ function heroSelect() {
           h('button', { class: 'btn ghost small', onclick: () => { heat = Math.min(meta.heatMax, heat + 1); sfx.tap(); render(); } }, '+')),
         h('div', { class: 'sub', style: { 'margin-top': '6px' }, html: heat ? R.HEAT.slice(1, heat + 1).map((t, k) => `${k + 1}. ${t}`).join('<br>') : 'Win at your highest Heat to unlock the next level.' })));
     }
-    renderBox();
-  }
-  function renderBox() {
-    const cap = boxCapacity(heat);
-    // heat may have shrunk the box: drop cards from the end until it fits
-    while (boxUsed() > cap) box.pop();
-    boxEl.innerHTML = '';
-    const pips = h('span', { class: 'box-pips' }, ...Array.from({ length: cap }, (_, i) => h('i', { class: i < boxUsed() ? 'on' : '' })));
-    const head = h('div', { class: 'box-head' }, h('span', { html: `${icon('locked-chest')}<b>Deck Box</b>` }), pips);
-    const slots = h('div', { class: 'box-cards' });
-    box.forEach(cid => { const k = meta.collection.find(k => k.cid === cid); if (k) slots.append(h('div', {}, cardEl(k, { mini: true }))); });
-    const has = meta.collection.filter(k => !k.grade).length;
-    const note = h('div', { class: 'sub', html: has
-      ? `Bring cards from your collection. Commons & Uncommons take 1 space, Rares 2, Mythics 3.${cap < meta.boxCap ? ` <b>Heat shrinks your box to ${cap}.</b>` : ''} <b style="color:#ff8a8a">Lose the run and they are shredded.</b>`
-      : 'Your collection is empty. After each run you take cards home — bring them back here to start stronger. But if you lose, the cards you brought are shredded.' });
-    const btn = has ? h('button', { class: 'btn ghost small', onclick: () => { sfx.tap(); pickBox(); } }, box.length ? 'Change' : 'Choose cards') : null;
-    boxEl.append(h('div', { class: 'deckbox' }, head, box.length ? slots : null, note, btn));
-  }
-  function pickBox() {
-    const grid = h('div', { class: 'coll-grid' });
-    const cap = boxCapacity(heat);
-    const capEl = h('div', { class: 'sub' });
-    const draw = () => {
-      grid.innerHTML = '';
-      capEl.innerHTML = `Space used: <b>${boxUsed()}/${cap}</b>`;
-      sortedCollection().filter(k => !k.grade).forEach(k => {
-        const on = box.includes(k.cid);
-        const fits = on || boxUsed() + boxCost(k) <= cap;
-        const el = h('div', { class: 'coll-item' + (on ? ' on' : '') + (fits ? '' : ' nofit') }, cardEl(k, { mini: true }), h('span', { class: 'cost' }, '◆'.repeat(boxCost(k))));
-        el.addEventListener('click', () => {
-          if (on) box = box.filter(c => c !== k.cid);
-          else if (fits) box.push(k.cid); else { toast('Not enough space in the Deck Box'); return; }
-          sfx.tap(); draw();
-        });
-        grid.append(el);
-      });
-    };
-    draw();
-    const m = modal([h('div', { class: 'h2' }, 'Pack your Deck Box'), capEl, grid,
-      h('button', { class: 'btn gold', style: { width: '100%', 'margin-top': '10px' }, onclick: () => { m.close(); renderBox(); } }, 'Done')], { onClose: renderBox });
   }
   startBtn.addEventListener('click', () => {
     sfx.tap(); meta.lastHeat = heat; saveMeta();
-    // brought cards leave the collection now; they come back only if the run is won
-    const brought = removeFromCollection(box);
-    run = R.newRun({ hero: pick, heat, unlockedSets: unlockedSets(), box: brought });
-    saveMeta(); save(); mapScreen(true);
-    if (brought.length) toast(`<b>Deck Box packed</b> — ${brought.length} card${brought.length > 1 ? 's' : ''} at stake. Win to bring ${brought.length > 1 ? 'them' : 'it'} home.`, 3200);
+    run = R.newRun({ hero: pick, heat, unlockedSets: unlockedSets() });
+    save(); mapScreen(true);
   });
   render();
-  scr.append(top, h('div', { class: 'scroll', style: { flex: '1' } }, list, boxEl, heatBox), startBtn);
+  scr.append(top, h('div', { class: 'scroll', style: { flex: '1' } }, list, heatBox), startBtn);
   mount(scr);
 }
 
@@ -672,59 +616,14 @@ function endScreen() {
   body.append(h('div', { class: 'h1', style: { 'font-size': '46px', color: win ? '#6dffb0' : '#ff5d73' } }, win ? 'YOU WON!' : 'RUN OVER'),
     h('div', { class: 'sub', style: { 'font-size': '15px' } }, win ? `${H.name} conquered the shop${run.heat ? ' at Heat ' + run.heat : ''}.` : `${H.name} fell on floor ${run.floor} (Act ${run.act})${run.killedBy ? ' to ' + run.killedBy : ''}.`));
   body.append(h('div', { class: 'endstats', html: `<div><b>${run.floor}</b><span>Floors</span></div><div><b>${run.stats.fights}</b><span>Fights won</span></div><div><b>${run.stats.packs}</b><span>Packs ripped</span></div>` }));
+  const fan = h('div', { style: { display: 'flex', gap: '6px', 'justify-content': 'center', 'flex-wrap': 'wrap' } });
+  run.row.filter(Boolean).forEach(c => { const el = cardEl(c, { cw: '70px' }); el.addEventListener('click', () => zoomCard(c)); fan.append(el); });
+  body.append(h('div', { class: 'sub' }, 'Your final row'), fan);
   if (win && !run.daily && meta.heatMax > (run.heat || 0)) body.append(h('div', { class: 'unlock done', html: `${icon('flame')}<span><b>HEAT ${meta.heatMax}</b> unlocked: ${R.HEAT[meta.heatMax]}</span>` }));
-  // ---- Credit for the Back Room ----
-  if (!run.credit) { run.credit = runCredit(run, win); meta.credit += run.credit.total; run.newCustomer = runArrival(); saveMeta(); save(); }
-  body.append(h('div', { class: 'credit-gain', html: `${icon('gems')}<b>+${run.credit.total} Credit</b><span>${run.credit.display ? `run ${run.credit.base} + display case ${run.credit.display}` : 'spend it in the Back Room'}${run.newCustomer ? ' · a customer just walked in' : ''}</span>` }));
-  // ---- Deck Box result ----
-  const boxed = R.boxedSurvivors(run), lostBox = (run.box || []).length;
-  if (win && boxed.length && !run.boxReturned) { boxed.forEach(c => addToCollection(c)); run.boxReturned = true; } // once, even across reloads
-  if (boxed.length || lostBox) {
-    const row = h('div', { class: 'endfan' + (win ? '' : ' shredded') });
-    boxed.forEach(c => row.append(h('div', { class: 'shred-wrap' }, cardEl(c, { cw: '62px' }))));
-    body.append(h('div', { class: 'sub', html: win ? `<b style="color:#6dffb0">Deck Box returned</b> — ${boxed.length} card${boxed.length === 1 ? '' : 's'} back in your collection.`
-      : `<b style="color:#ff5d73">Deck Box shredded</b> — the ${lostBox} card${lostBox === 1 ? '' : 's'} you brought ${lostBox === 1 ? 'is' : 'are'} gone.` }));
-    if (boxed.length) body.append(row);
-  }
-  // ---- take cards home ----
-  const pool = R.takeHomePool(run);
-  const n = Math.min(takeHomeCount(win), pool.length);
-  let picked = run.homePicked || [];
-  const btns = h('div', { class: 'menu', style: { 'margin-top': '10px' } });
-  const takeBtn = h('button', { class: 'btn gold' });
-  const fan = h('div', { class: 'endfan' });
-  const heading = h('div', { class: 'sub' });
-  const leave = then => {
-    if (!run.homeDone) {
-      run.homeDone = true;
-      pool.filter(c => picked.includes(c.uid)).forEach(c => addToCollection(c));
-      saveMeta(); save();
-    }
-    run = null; clearRun(); then();
-  };
-  function drawPick() {
-    fan.innerHTML = '';
-    pool.forEach(c => {
-      const on = picked.includes(c.uid);
-      const el = h('div', { class: 'take' + (on ? ' on' : '') }, cardEl(c, { cw: '70px' }));
-      if (!run.homeDone) el.addEventListener('click', () => {
-        if (on) picked = picked.filter(u => u !== c.uid);
-        else if (picked.length < n) picked.push(c.uid);
-        else if (n === 1) picked = [c.uid];
-        else { toast(`You can take ${n} home`); return; }
-        run.homePicked = picked; save(); sfx.tap(); drawPick();
-      });
-      fan.append(el);
-    });
-    heading.innerHTML = n ? `<b>Take ${n} card${n > 1 ? 's' : ''} home</b> to your collection${win ? '' : ' — the rest is lost'} · ${picked.length}/${n}` : 'Your final row';
-    takeBtn.textContent = picked.length ? `Take ${picked.length} home & new run` : 'New run';
-  }
-  drawPick();
-  body.append(heading, fan);
-  takeBtn.addEventListener('click', () => { sfx.tap(); leave(heroSelect); });
-  btns.append(takeBtn, h('button', { class: 'btn ghost', onclick: () => { sfx.tap(); leave(title); } }, 'Title'));
+  const btns = h('div', { class: 'menu', style: { 'margin-top': '10px' } },
+    h('button', { class: 'btn gold', onclick: () => { sfx.tap(); run = null; clearRun(); heroSelect(); } }, 'New run'),
+    h('button', { class: 'btn ghost', onclick: () => { sfx.tap(); run = null; clearRun(); title(); } }, 'Title'));
   body.append(btns);
-  saveMeta(); save();
   scr.append(body);
   mount(scr);
   if (win) { sfx.win(); const p = centerOf(body); setTimeout(() => burst(p.x, p.y * 0.6, { count: 140, colors: RARITY_FX.M, kind: 'confetti', speed: 11, lift: 4 }), 200); }
@@ -746,8 +645,7 @@ function binder(fromRun) {
     tabs.innerHTML = '';
     for (const s of SET_ORDER) {
       const S = SETS[s];
-      const done = (meta.setsDone || []).includes(s);
-      tabs.append(h('div', { class: 'tab' + (tab === s ? ' on' : '') + (sets.includes(s) ? '' : ' lock') + (done ? ' done' : ''), style: { '--k': S.color }, html: icon(S.glyph) + S.name + (done ? ' ★' : ''), onclick: () => { tab = s; sfx.tap(); render(); } }));
+      tabs.append(h('div', { class: 'tab' + (tab === s ? ' on' : '') + (sets.includes(s) ? '' : ' lock'), style: { '--k': S.color }, html: icon(S.glyph) + S.name, onclick: () => { tab = s; sfx.tap(); render(); } }));
     }
     tabs.append(h('div', { class: 'tab' + (tab === 'unlocks' ? ' on' : ''), style: { '--k': '#6dffb0' }, html: icon('padlock') + 'Unlocks', onclick: () => { tab = 'unlocks'; sfx.tap(); render(); } }));
     page.innerHTML = '';
@@ -763,7 +661,7 @@ function binder(fromRun) {
     const cards = CARD_LIST.filter(c => c.set === tab);
     const have = cards.filter(c => meta.binder[c.id]).length;
     page.append(h('div', { style: { padding: '4px 14px 2px', display: 'flex', 'justify-content': 'space-between', 'font-weight': 800, 'font-size': '13px' } },
-      h('span', {}, SETS[tab].name + (sets.includes(tab) ? '' : ' (locked — not in packs yet)')), h('span', { style: { color: have === cards.length ? 'var(--gold)' : 'var(--muted)' } }, have === cards.length ? `COMPLETE ★ ${have}/${cards.length}` : `${have}/${cards.length} · complete it for ${SET_REWARD} Credit`)));
+      h('span', {}, SETS[tab].name + (sets.includes(tab) ? '' : ' (locked — not in packs yet)')), h('span', { style: { color: 'var(--muted)' } }, `${have}/${cards.length}`)));
     page.append(h('div', { class: 'progress', html: `<i style="width:${have / cards.length * 100}%"></i>` }));
     const grid = h('div', { class: 'binder-page' });
     for (const d of cards) {
@@ -817,8 +715,7 @@ window.__holo = {
   // debug: open a booster containing exactly these pulls, e.g. pull([['jab','holo'],['jab','cracked']])
   pull(list) { const res = R.openPack(run, { type: 'booster' }); res.cards = list.map(([id, ed = 'normal', star = 1]) => R.newCard(run, id, ed, star)); openPackFlow(res, 'map'); },
   fight(kind = 'fight') { R.startBattle(run, kind); save(); battleFlow(); },
-  goto(fn) { ({ title, binder, heroSelect, mapScreen, endScreen, resume, backRoom: openBackRoom })[fn](); },
-  credit(n) { meta.credit += n; saveMeta(); },
+  goto(fn) { ({ title, binder, heroSelect, mapScreen, endScreen, resume })[fn](); },
   node(node, ev) { run.pending = { type: 'node', node, ev: ev || 'trader', shop: R.makeShop(run), line: 'Packs fresh from the back. Mostly.' }; save(); nodeScreen(); },
 };
 

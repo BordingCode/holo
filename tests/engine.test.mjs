@@ -84,17 +84,6 @@ import { useTactic, setCounts } from '../js/engine.js';
 { const B = battle([card('jab')], ['tape_golem'], { relics: ['opening_salvo'] }); playRound(B); ok(dealt(B) === 8, 'opening salvo round 1'); }
 
 
-// ---- Vintage set ----
-{ const B = battle([card('jab'), card('jab', 'normal', 2), card('faded_print')]); playRound(B); ok(dealt(B) === 4 + 6 + 4, 'faded print: 1 per ★ (4 stars)'); }
-{ const B = battle([card('mint_condition'), card('jab', 'normal', 3)]); playRound(B); ok(dealt(B) === 16, 'mint condition: ★3 right fires twice'); }
-{ const B = battle([card('mint_condition'), card('jab')]); playRound(B); ok(dealt(B) === 8, 'mint condition: else +4'); }
-{ const B = battle([card('jab', 'normal', 3), card('the_archive')]); playRound(B); ok(dealt(B) === 16, 'archive refires ★3 card'); }
-{ const B = battle([card('holy_grail', 'normal', 2), card('jab', 'normal', 2)]); playRound(B); ok(dealt(B) === 10, 'grail ×1.75 when all ★2+ (jab★2=6)'); }
-{ const B = battle([card('faded_print'), card('faded_print')]); const n = setCounts(B.row); ok(n.vintage === 2, 'vintage set count'); playRound(B); ok(dealt(B) === 4, 'vintage-2 does not boost ★1'); }
-{ const B = battle([card('hardcover'), card('hardcover'), card('hardcover'), card('hardcover'), card('jab', 'normal', 3)]); playRound(B); ok(B.ev.filter(e => e.t === 'fire' && e.slot === 4).length === 2, 'vintage-4: ★3 fires twice'); ok(dealt(B) === 18, 'vintage-2: ★2+ cards +1 per hit'); }
-{ const h = card('heirloom'); const B = battle([h]); playRound(B); playRound(B); ok(h.grow === 2 && dealt(B) === 4, 'heirloom ticks up (round 2 deals 3+1)'); }
-{ const B = battle([card('golden_age'), card('jab')], ['tape_golem', 'tape_golem']); playRound(B); ok(B.ev.filter(e => e.t === 'dmg' && e.side === 'e').length >= 3, 'golden age hits all'); }
-
 // ---- merge rules: every edition pair ----
 {
   const EDS = ['normal', 'foil', 'holo', 'gilded', 'cracked', 'misprint'];
@@ -127,42 +116,6 @@ import { useTactic, setCounts } from '../js/engine.js';
   run.row = [R.newCard(run, 'jab', 'normal', 3), R.newCard(run, 'jab', 'normal', 1), null, null, null, null]; run.bench = [R.newCard(run, 'jab', 'foil', 2), null, null, null];
   const tg = R.mergeTargets(run, 'jab'); ok(tg[0].c.star === 2 && tg[tg.length - 1].c.star === 3, 'merge targets: unmaxed best first, maxed last');
 }
-
-// ---- grading ----
-import * as G from '../js/grade.js';
-ok(G.finalGrade({ centering: 10, surface: 10, corners: 10 }) === 10, 'perfect → 10');
-ok(G.finalGrade({ centering: 10, surface: 10, corners: 6 }) === 7, 'worst sub-grade caps at +1');
-ok(G.finalGrade({ centering: 9, surface: 9, corners: 9 }) === 9, 'all 9 → 9');
-ok(G.centeringScore(0.01) === 10 && G.centeringScore(-0.3) === 7 && G.centeringScore(0.9) === 5, 'centering bands');
-ok(G.surfaceScore(1) === 10 && G.surfaceScore(0.6) === 7 && G.surfaceScore(0) === 4, 'surface bands');
-{ let n10 = 0; for (let i = 0; i < 2000; i++) { const c = [0, 0, 0, 0].map(() => G.rollCorner()); if (G.finalGrade({ centering: 10, surface: 10, corners: G.cornersScore(c) }) === 10) n10++; }
-  ok(n10 > 0 && n10 < 400, 'gem mint is rare even with perfect play (' + n10 + '/2000)'); }
-
-// ---- customers ----
-import * as CU from '../js/customers.js';
-{ const sets = ['base', 'ember', 'venom', 'iron'];
-  let okAll = true, kinds = new Set();
-  for (let i = 0; i < 300; i++) { const c = CU.makeCustomer(i, { sets, seed: 7 });
-    kinds.add(c.req.kind);
-    if (!CU.REGULARS[c.who] || !(c.pay.credit > 0) || CU.requestText(c.req).includes('?') || CU.requestText(c.req).includes('undefined')) okAll = false;
-    if (c.req.set && !sets.includes(c.req.set)) okAll = false;
-    if (c.req.id && !sets.includes(CARDS[c.req.id].set)) okAll = false; }
-  ok(okAll, 'customers: valid requests from unlocked sets only'); ok(kinds.size >= 6, 'customers: varied requests (' + [...kinds] + ')');
-  const a = CU.makeCustomer(5, { sets, seed: 7 }), b = CU.makeCustomer(5, { sets, seed: 7 }); ok(JSON.stringify(a) === JSON.stringify(b), 'customers: deterministic per seq');
-  const w = [CU.makeCustomer(1, { sets }), CU.makeCustomer(2, { sets })]; let dup = false;
-  for (let i = 3; i < 60; i++) if (w.some(x => x.who === CU.makeCustomer(i, { sets, waiting: w }).who)) dup = true; ok(!dup, 'customers: no regular queues twice');
-  ok(CU.matches({ kind: 'set_ed', set: 'ember', ed: 'foil' }, { id: 'ember_fang', ed: 'foil', star: 1 }), 'match set+edition');
-  ok(!CU.matches({ kind: 'set_ed', set: 'ember', ed: 'foil' }, { id: 'ember_fang', ed: 'holo', star: 1 }), 'no match wrong edition');
-  ok(CU.matches({ kind: 'graded', grade: 8 }, { id: 'jab', ed: 'normal', star: 1, grade: 9 }) && !CU.matches({ kind: 'graded', grade: 8 }, { id: 'jab', ed: 'normal', star: 1 }), 'graded match');
-  ok(CU.arrivals(0, 0) === 0 && CU.arrivals(0, 1) === 1 && CU.arrivals(1, 10) === 2 && CU.arrivals(3, 5) === 0, 'arrivals: capped queue, absence safe');
-}
-
-// ---- deploy hygiene: every module import must carry the same ?v= (else two copies of a module load → split save state)
-{ const fs = await import('node:fs');
-  const vs = new Set(); let bad = [];
-  for (const f of fs.readdirSync('js')) { const src = fs.readFileSync('js/' + f, 'utf8');
-    for (const m of src.matchAll(/from '\.\/([\w-]+\.js)(\?v=\d+)?'/g)) { if (!m[2]) bad.push(f + '→' + m[1]); else vs.add(m[2]); } }
-  ok(!bad.length, 'unversioned imports: ' + bad.join(', ')); ok(vs.size <= 1, 'mixed import versions: ' + [...vs]); }
 
 function window_r(x) { return globalThis.__C[x.id].r; }
 
