@@ -649,9 +649,7 @@ button { font: inherit; color: inherit; }
 .room .lamp::after { content: ''; position: absolute; left: 50%; top: calc(100% + 8px); width: 340px; height: 260px; transform: translateX(-50%); pointer-events: none; border-radius: 0; box-shadow: none;
   background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--light) 30%, transparent), transparent 65%); clip-path: polygon(46% 0, 54% 0, 100% 100%, 0 100%); animation: lampFlicker 7s infinite; mix-blend-mode: screen; }
 @keyframes lampFlicker { 0%, 40%, 44%, 100% { opacity: .9; } 41%, 43% { opacity: .35; } 42% { opacity: .75; } 70% { opacity: .8; } }
-.rm-dark { position: absolute; inset: 0; pointer-events: none; z-index: 5; transition: opacity .9s;
-  background: radial-gradient(circle 120px at var(--lx, 50%) var(--ly, 55%), #fff1 0%, transparent 60%), radial-gradient(circle 190px at var(--lx, 50%) var(--ly, 55%), transparent 30%, #000a 75%, #000d 100%); mix-blend-mode: normal; }
-.rm-dark::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse 80% 70% at 50% 50%, transparent 55%, #000 100%); }
+.rm-dark { position: absolute; inset: 0; pointer-events: none; z-index: 5; background: radial-gradient(ellipse 75% 70% at 50% 52%, transparent 45%, #000a 85%, #000 100%); }
 /* doors */
 .door { position: relative; flex: 0 1 30%; max-width: 74px; height: 84%; border: 0; padding: 0; background: none; cursor: pointer; transform-style: preserve-3d; -webkit-tap-highlight-color: transparent; }
 .door.boss { flex-basis: 52%; max-width: 150px; height: 92%; }

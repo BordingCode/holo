@@ -1,13 +1,13 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=16';
-import * as R from './run.js?v=16';
-import { hashStr } from './rng.js?v=16';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=16';
-import { packScreen } from './pack.js?v=16';
-import { battleScreen } from './battle.js?v=16';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=16';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=16';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=16';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=17';
+import * as R from './run.js?v=17';
+import { hashStr } from './rng.js?v=17';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=17';
+import { packScreen } from './pack.js?v=17';
+import { battleScreen } from './battle.js?v=17';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=17';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=17';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=17';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -294,25 +294,6 @@ function roomProps(key) {
   }
   return out.join('');
 }
-// the flashlight: follows your finger, the phone's tilt, or drifts on its own
-function flashlight(room) {
-  let tx = 50, ty = 55, x = 50, y = 55, lastInput = 0, raf;
-  const aim = (px, py) => { tx = px; ty = py; lastInput = performance.now(); };
-  room.addEventListener('pointermove', e => { const r = room.getBoundingClientRect(); aim((e.clientX - r.left) / r.width * 100, (e.clientY - r.top) / r.height * 100); });
-  room.addEventListener('pointerdown', e => { const r = room.getBoundingClientRect(); aim((e.clientX - r.left) / r.width * 100, (e.clientY - r.top) / r.height * 100); });
-  const gyro = e => { if (e.gamma == null || !room.isConnected) return; aim(50 + Math.max(-40, Math.min(40, e.gamma * 1.4)), 55 + Math.max(-30, Math.min(30, (e.beta - 45) * 1.1))); };
-  addEventListener('deviceorientation', gyro);
-  room.aimAt = aim;
-  const loop = t => {
-    if (!room.isConnected) { removeEventListener('deviceorientation', gyro); return; }
-    if (t - lastInput > 2500) { tx = 50 + Math.sin(t / 2300) * 22; ty = 56 + Math.sin(t / 1700) * 10; }
-    x += (tx - x) * 0.08; y += (ty - y) * 0.08;
-    room.style.setProperty('--lx', x.toFixed(1) + '%'); room.style.setProperty('--ly', y.toFixed(1) + '%');
-    raf = requestAnimationFrame(loop);
-  };
-  if (!meta.settings.reduceMotion) raf = requestAnimationFrame(loop);
-}
-
 function roomScreen(fresh) {
   music('explore' + run.act);
   const scr = h('div', { class: 'screen room-screen' });
@@ -342,8 +323,6 @@ function roomScreen(fresh) {
     d.addEventListener('click', () => {
       if (chosen === nd) return walkThrough(nd);
       chosen = nd; sfx.listen(nd.type); els.forEach(x => x.classList.toggle('sel', x === d)); showInfo();
-      const rr = room.getBoundingClientRect(), dr = d.getBoundingClientRect();
-      room.aimAt && room.aimAt((dr.left + dr.width / 2 - rr.left) / rr.width * 100, (dr.top + dr.height / 2 - rr.top) / rr.height * 100);
     });
     return d;
   });
@@ -365,7 +344,6 @@ function roomScreen(fresh) {
   showInfo();
   scr.append(topbarRun([planBtn]), head, room, info, arr.detail, arr.el);
   mount(scr);
-  flashlight(room);
   if (fresh && run.floor === 0 && run.act === 1 && !meta.seen) {
     meta.seen = true; saveMeta();
     setTimeout(() => modal([h('div', { class: 'h2' }, 'How HOLO works'),
