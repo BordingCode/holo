@@ -5,9 +5,38 @@ if (process.env.EXCLUDE) for (const id of process.env.EXCLUDE.split(',')) CARD_L
 import { autoFight, ROW_SIZE, createBattle, playRound, useTactic, intentView, alive } from '../js/engine.js';
 import { makeRng } from '../js/rng.js';
 import * as R from '../js/run.js';
+import * as X from '../js/explore.js';
+const NOEXPLORE = !!process.env.NOEXPLORE;
+const exploreStats = { spots: 0, packs: 0, relics: 0, coins: 0, hpLost: 0, goals: 0 };
+// poke at everything sensible in the room you stand in
+function explore(run) {
+  if (NOEXPLORE) return;
+  const { spots } = X.roomSpots(run);
+  for (const sp of spots) {
+    const def = X.SPOTS[sp.kind];
+    for (const a of def.actions) {
+      let guard = 0;
+      while (!sp.used && guard++ < 3) {
+        if (!X.canDo(run, sp, a).ok) break;
+        if (a.risk && run.hp < run.maxHp * 0.55) break;
+        if (a.cost && run.coins < 25) break;
+        const res = X.doSpot(run, sp, a.id); exploreStats.spots++;
+        for (const o of res.out) {
+          if (o.coins > 0) exploreStats.coins += o.coins;
+          if (o.hp < 0) exploreStats.hpLost -= o.hp;
+          if (o.goalDone) exploreStats.goals++;
+          if (o.pack) { exploreStats.packs++; openAndPlace(run, { type: o.pack }); }
+          if (o.relic) { const c = R.relicChoices(run, 2); if (c.length) { R.takeRelic(run, c[0]); exploreStats.relics++; } }
+          if (o.tactic) R.addTactic(run, R.randomTactic(run));
+          if (o.xp) { const c = run.row.find(c => c && !CARDS[c.id].passive); if (c) c.xp = (c.xp || 0) + o.xp; }
+        }
+      }
+    }
+  }
+}
 
 const N = +(process.argv[2] || 300), HERO = process.argv[3] || 'kip', HEAT = +(process.argv[4] || 0);
-const ALLSETS = process.env.SETS ? process.env.SETS.split(',') : process.env.NEWBIE ? ['base','ember','venom','iron','clock'] : ['base', 'ember', 'venom', 'iron', 'clock', 'gilded', 'void'];
+const ALLSETS = process.env.SETS ? process.env.SETS.split(',') : process.env.NEWBIE ? ['base','ember','venom','iron','bloom','clock'] : ['base', 'ember', 'venom', 'iron', 'bloom', 'clock', 'gilded', 'void'];
 
 // Score a row by test-firing it for 4 rounds against a training dummy.
 function evalRow(run, row) {
@@ -98,14 +127,17 @@ if (process.env.GMULT) process.env.GMULT.split(',').forEach((m, k) => GROW_MULT[
 const growAt = { 2: [0, 0, 0], 3: [0, 0, 0], end: [0, 0, 0] };
 const tallyGrow = (key, run) => run.row.filter(c => c && !CARDS[c.id].passive).forEach(c => growAt[key][growStage(c)]++);
 const res = { win: 0, deaths: {}, act: { 1: 0, 2: 0, 3: 0 }, floors: 0 };
+const perCard = {}; // id -> {n, w}
 for (let i = 0; i < N; i++) {
   const run = R.newRun({ hero: HERO, heat: HEAT, seed: 1000 + i, unlockedSets: ALLSETS });
+  if (process.env.STARTWITH) run.row[3] = R.newCard(run, process.env.STARTWITH); // causal test: start with this card
   let guard = 0, lastAct = run.act;
   while (!run.over && guard++ < 200) {
     const opts = R.reachable(run).map(id => R.nodeById(run, id));
     const pref = { treasure: 6, shop: run.coins >= 20 ? 5 : 1, rest: 3, fight: 3, event: 2, grader: 2, elite: run.hp > run.maxHp * 0.6 ? 3 : 0, boss: 9 };
     opts.sort((a, b) => (pref[b.type] || 0) - (pref[a.type] || 0));
     if (run.act !== lastAct) { lastAct = run.act; if (growAt[run.act]) tallyGrow(run.act, run); }
+    explore(run);
     const nd = R.enterNode(run, opts[0].id);
     res.act[run.act]++;
     if (nd.type === 'fight' || nd.type === 'elite' || nd.type === 'boss') {
@@ -134,10 +166,17 @@ for (let i = 0; i < N; i++) {
   res.floors += run.floor; tallyGrow('end', run);
   if (process.env.SHOW && i < 6) console.log(run.over||'dead', 'act', run.act, 'floor', run.floor, 'coins', run.coins, run.row.map(c => c ? c.id + '★' + c.star + (c.ed !== 'normal' ? '(' + c.ed + ')' : '') : '-').join(' '));
   if (run.over === 'win') res.win++;
+  for (const id of new Set(run.row.filter(Boolean).map(c => c.id))) { const pc = perCard[id] ||= { n: 0, w: 0, floor: 0 }; pc.n++; pc.floor += run.floor; if (run.over === 'win') pc.w++; }
 }
 console.log(`hero=${HERO} heat=${HEAT} runs=${N}  WIN ${(100 * res.win / N).toFixed(1)}%  avg floor ${(res.floors / N).toFixed(1)}`);
 console.log('reached act2:', (100 * (N - Object.entries(res.deaths).filter(([k]) => k[0] === '1').reduce((s, [, v]) => s + v, 0)) / N).toFixed(0) + '%',
   ' act3:', (100 * (N - Object.entries(res.deaths).filter(([k]) => k[0] !== '3').reduce((s, [, v]) => s + v, 0)) / N).toFixed(0) + '%');
 const pct = a => { const t = a[0] + a[1] + a[2] || 1; return `print ${Math.round(100 * a[0] / t)}% / alt ${Math.round(100 * a[1] / t)}% / full ${Math.round(100 * a[2] / t)}%`; };
 console.log('row growth  start act2:', pct(growAt[2]), ' | start act3:', pct(growAt[3]), ' | end:', pct(growAt.end));
+if (!NOEXPLORE) console.log('explore per run:', Object.entries(exploreStats).map(([k, v]) => `${k} ${(v / N).toFixed(1)}`).join('  '));
+if (process.env.PERCARD) {
+  const out = Object.entries(perCard).map(([id, v]) => ({ id, ...v }));
+  globalThis.__perCard = out;
+  console.log('PERCARD ' + JSON.stringify(out));
+}
 console.log('deaths:', Object.entries(res.deaths).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}=${v}`).join('  '));

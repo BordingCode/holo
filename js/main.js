@@ -1,13 +1,15 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=17';
-import * as R from './run.js?v=17';
-import { hashStr } from './rng.js?v=17';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=17';
-import { packScreen } from './pack.js?v=17';
-import { battleScreen } from './battle.js?v=17';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=17';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=17';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=17';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=19';
+import * as R from './run.js?v=19';
+import * as X from './explore.js?v=19';
+import { hashStr } from './rng.js?v=19';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=19';
+import { packScreen } from './pack.js?v=19';
+import { battleScreen } from './battle.js?v=19';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=19';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX, floatText } from './fx.js?v=19';
+import { canGrow, growStage, cardName } from './engine.js?v=19';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=19';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -283,37 +285,68 @@ const PROPS = {
   2: ['holy-grail', 'laurel-crown', 'photo-camera', 'pocket-watch', 'padlock', 'desk-lamp', 'paint-brush', 'open-book'],
   3: ['scroll-unfurled', 'book-cover', 'stamper', 'candle-flame', 'hanging-spider', 'sands-of-time', 'padlock', 'cardboard-box'],
 };
-const PROP_SPOTS = ['sl-hi', 'sl-lo', 'sr-hi', 'sr-lo', 'fl', 'fr'];
+const PROP_SPOTS = ['sl-hi', 'sr-hi'];
 function roomProps(key) {
   const out = []; let hsh = hashStr(String(key));
   const spots = PROP_SPOTS.slice(), pool = PROPS[run.act].slice();
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 2; i++) {
     const sp = spots.splice(hsh % spots.length, 1)[0]; hsh = (hsh * 31 + 7) >>> 0;
     const pr = pool.splice(hsh % pool.length, 1)[0]; hsh = (hsh * 17 + 3) >>> 0;
     out.push(`<span class="prop ${sp}">${icon(pr)}</span>`);
   }
   return out.join('');
 }
+function nightModal(first) {
+  const N = X.NIGHTS[run.night.id];
+  const m = modal([h('div', { class: 'night-head', style: { '--k': N.color }, html: `${icon(N.icon)}<div><div class="sub">${first ? 'TONIGHT' : 'TONIGHT\'S STORY'}</div><div class="h2">${N.name}</div></div>` }),
+    h('p', { class: 'sub', style: { 'font-size': '15px', color: '#e9e1ff' } }, N.intro),
+    h('div', { class: 'night-goal', style: { '--k': N.color }, html: `${icon(N.tokenIcon)}<div><b>${N.goal}</b> — ${run.night.done ? '<span style="color:#6dffb0">done!</span>' : `${run.night.got}/${N.need}`}<br><span>${N.reward}</span></div>` }),
+    h('p', { class: 'sub', style: { 'font-size': '13px' } }, 'Poke around every room: bins, cases, machines, sleeping things. What you find in one room can open something in another.'),
+    h('button', { class: 'btn gold', style: { width: '100%' }, onclick: () => m.close() }, first ? 'Into the dark' : 'OK')]);
+}
+
 function roomScreen(fresh) {
   music('explore' + run.act);
+  if (!run.night) X.startNight(run);
   const scr = h('div', { class: 'screen room-screen' });
   const doors = R.reachable(run).map(id => R.nodeById(run, id)).sort((a, b) => a.x - b.x);
-  const room = h('div', { class: `room act-${run.act}` });
+  const spots = X.roomSpots(run).spots; save();
+  const room = h('div', { class: `room act-${run.act} night-${run.night.id}` });
   const scene = h('div', { class: 'rm-scene' });
   scene.innerHTML = '<div class="rm-ceil"></div><div class="rm-side l"></div><div class="rm-side r"></div><div class="rm-floor"></div><span class="lamp"></span>' + roomProps(run.seed + ':' + run.pos);
   const wall = h('div', { class: 'rm-wall' });
   scene.append(wall);
   room.append(scene, h('div', { class: 'rm-dark' }));
-  let chosen = null;
+  let chosen = null, said = null; // chosen = {door} | {spot}
   const info = h('div', { class: 'door-info' });
   const showInfo = () => {
     info.innerHTML = '';
-    if (!chosen) { info.append(h('div', { class: 'di-hint', html: doors.length > 1 ? `${doors.length} doors. <b>Tap one</b> to listen at it.` : '<b>Tap the door</b> to listen at it.' })); return; }
-    const nd = chosen, N = NODE[nd.type], boss = nd.type === 'boss' ? ENEMIES[R.pickBossId(run)] : null;
+    if (!chosen) {
+      const left = spots.filter(sp => !sp.used).length;
+      info.append(h('div', { class: 'di-hint', html: `${left ? `<b>${left} thing${left > 1 ? 's' : ''}</b> to poke at. ` : ''}${doors.length > 1 ? `${doors.length} doors` : 'One door'} onward — <b>tap</b> to look closer.` }));
+      return;
+    }
+    if (chosen.spot) {
+      const sp = chosen.spot, D = X.SPOTS[sp.kind];
+      info.append(h('div', { class: 'di-type', style: { color: D.color }, html: `${icon(D.icon)}<b>${D.name}</b>${D.goal ? '<span class="goaltag">TONIGHT</span>' : ''}` }));
+      info.append(h('div', { class: 'di-hint' }, said || (sp.used ? 'Nothing more here.' : D.text)));
+      if (!sp.used) {
+        const row = h('div', { class: 'di-acts' });
+        for (const a of D.actions) {
+          const c = X.canDo(run, sp, a);
+          row.append(h('button', { class: 'btn small ' + (c.ok ? (a.risk ? 'risk' : 'gold') : 'ghost'), disabled: !c.ok, onclick: () => poke(sp, a.id) },
+            h('span', {}, a.label), a.risk ? h('em', {}, 'risky') : c.ok ? '' : h('em', {}, c.why)));
+        }
+        info.append(row);
+      }
+      return;
+    }
+    const nd = chosen.door, N = NODE[nd.type], boss = nd.type === 'boss' ? ENEMIES[R.pickBossId(run)] : null;
     info.append(h('div', { class: 'di-type', style: { color: N.color }, html: `${icon(boss ? boss.icon : N.icon)}<b>${boss ? boss.name : N.label}</b>` + (nd.type === 'elite' && nd.loot && SETS[nd.loot] ? `<span class="loottag" style="--k:${SETS[nd.loot].color}">${icon(SETS[nd.loot].glyph)}${SETS[nd.loot].name} loot</span>` : '') }),
       h('div', { class: 'di-hint' }, pickBy(DOOR_HINTS[nd.type], run.seed + ':' + nd.id)),
       h('button', { class: 'btn gold di-go', onclick: () => walkThrough(nd) }, nd.type === 'boss' ? 'Face it' : 'Go through'));
   };
+  const select = (el, c) => { chosen = c; said = null; room.querySelectorAll('.sel').forEach(x => x.classList.remove('sel')); el.classList.add('sel'); showInfo(); };
   const els = doors.map(nd => {
     const N = NODE[nd.type], boss = nd.type === 'boss';
     const d = h('button', { class: `door t-${nd.type}${boss ? ' boss' : ''}`, style: { '--nc': N.color } });
@@ -321,12 +354,47 @@ function roomScreen(fresh) {
       <span class="d-leaf">${boss ? '<span class="d-leaf2"></span>' : ''}<span class="d-plaque">${icon(boss ? 'crowned-skull' : N.icon)}</span><span class="d-knob"></span></span>
       <span class="d-spill"></span>`;
     d.addEventListener('click', () => {
-      if (chosen === nd) return walkThrough(nd);
-      chosen = nd; sfx.listen(nd.type); els.forEach(x => x.classList.toggle('sel', x === d)); showInfo();
+      if (chosen && chosen.door === nd) return walkThrough(nd);
+      sfx.listen(nd.type); select(d, { door: nd });
     });
     return d;
   });
   wall.append(...els);
+  // the things lying around
+  const SLOTS = ['fl', 'fr', 'sl', 'sr'];
+  const spotEls = spots.map((sp, k) => {
+    const D = X.SPOTS[sp.kind];
+    const el = h('button', { class: `spot ${SLOTS[k % 4]}${sp.used ? ' used' : ''}${D.goal ? ' goal' : ''}`, style: { '--k': D.color } });
+    el.innerHTML = `<span class="sp-ico">${icon(D.icon)}</span><span class="sp-lbl">${D.name}</span>`;
+    el.addEventListener('click', () => { sfx.tap(); select(el, { spot: sp }); });
+    scene.append(el);
+    return el;
+  });
+  function poke(sp, actId) {
+    const res = X.doSpot(run, sp, actId);
+    said = res.say;
+    const el = spotEls[spots.indexOf(sp)], p = centerOf(el);
+    for (const o of res.out) {
+      if (o.coins) { floatText(p.x, p.y - 30, (o.coins > 0 ? '+' : '') + o.coins + ' coins', '#ffd166'); o.coins > 0 ? sfx.coin() : sfx.back(); }
+      if (o.hp) { floatText(p.x, p.y - 10, (o.hp > 0 ? '+' : '') + o.hp + ' HP', o.hp > 0 ? '#6dffb0' : '#ff5d73', o.hp < 0); if (o.hp < 0) { sfx.hurt(); shake(); } else sfx.heal(); }
+      if (o.item) { const I = X.ITEMS[o.item]; toast(`${icon(I.icon)} <b>${I.name}</b> — ${I.text}`, 2600); sfx.buy(); }
+      if (o.nothing) sfx.back();
+    }
+    if (res.out.some(o => o.token)) { burst(p.x, p.y, { count: 30, colors: [X.NIGHTS[run.night.id].color, '#fff'], kind: 'confetti', speed: 5 }); sfx.reveal('U'); }
+    el.classList.toggle('used', sp.used);
+    save(); refreshTop(); showInfo();
+    // things that need their own screen come last, one after the other
+    const queue = [];
+    if (res.out.some(o => o.goalDone)) queue.push(done => { const N = X.NIGHTS[run.night.id]; banner('TONIGHT: DONE', N.reward, N.color); sfx.reveal('M'); setTimeout(done, 1700); });
+    for (const o of res.out) {
+      if (o.tactic) queue.push(done => { const id = R.randomTactic(run); const T = TACTICS[id]; if (R.addTactic(run, id)) toast(`${icon('ticket')} <b>Tactic: ${T.name}</b> — ${T.text}`, 3000); else { run.coins += 4; toast(`Tactic ${T.name}, but you're full — sold for 4 coins.`); } save(); refreshTop(); done(); });
+      if (o.xp) queue.push(done => polishPick(o.xp, done));
+      if (o.relic) queue.push(done => relicPick(done));
+    }
+    const pack = res.out.find(o => o.pack);
+    const next = () => { const f = queue.shift(); if (f) f(next); else if (pack) setTimeout(() => openPackFlow(R.openPack(run, { type: pack.pack }), 'map'), 500); };
+    setTimeout(next, 450);
+  }
   function walkThrough(nd) {
     if (room.classList.contains('going')) return;
     const d = els[doors.indexOf(nd)];
@@ -336,28 +404,63 @@ function roomScreen(fresh) {
     d.classList.add('open'); room.classList.add('going'); sfx.creak();
     setTimeout(() => enter(nd.id), 900);
   }
+  const N = X.NIGHTS[run.night.id];
+  const nightChip = h('button', { class: 'night-chip' + (run.night.done ? ' done' : ''), style: { '--k': N.color }, onclick: () => { sfx.tap(); nightModal(false); } });
+  const pockets = h('div', { class: 'pockets' });
   const head = h('div', { class: 'actbanner' },
     h('div', { class: 'sub', style: { 'font-weight': 900, 'letter-spacing': '.2em' } }, `ACT ${run.act} · ${ACT_NAME[run.act].toUpperCase()}${run.daily ? ' · DAILY' : ''}${run.heat ? ' · HEAT ' + run.heat : ''}`),
-    h('div', { class: 'h2 room-name' }, roomName()));
+    h('div', { class: 'h2 room-name' }, roomName()),
+    h('div', { class: 'room-sub' }, nightChip, pockets));
   const planBtn = h('button', { class: 'iconbtn plan', title: 'Floor plan', onclick: () => { sfx.tap(); floorPlan(); }, html: icon('treasure-map') });
+  let top = topbarRun([planBtn]);
+  function refreshTop() {
+    const t2 = topbarRun([planBtn]); top.replaceWith(t2); top = t2;
+    nightChip.className = 'night-chip' + (run.night.done ? ' done' : '');
+    nightChip.innerHTML = `${icon(N.icon)}<span>${N.name}</span><b>${run.night.done ? '✓' : `${run.night.got}/${N.need}`}</b>`;
+    pockets.innerHTML = (run.items || []).length ? run.items.map(id => `<i title="${X.ITEMS[id].name}">${icon(X.ITEMS[id].icon)}</i>`).join('') : '<span>empty pockets</span>';
+  }
+  function polishPick(xp, done) {
+    const cards = run.row.filter(c => c && canGrow(c));
+    if (!cards.length) { run.coins += 6; toast('No card in your row can grow — you sell the kit for 6 coins.'); save(); refreshTop(); return done(); }
+    const grid = h('div', { class: 'pick-grid' });
+    const m = modal([h('div', { class: 'h2' }, 'Polish which card?'), h('div', { class: 'sub' }, `It grows +${xp}.`), grid]);
+    cards.forEach(c => { const el = cardEl(c, { mini: true }); el.addEventListener('click', () => {
+      const before = growStage(c); c.xp = (c.xp || 0) + xp; const after = growStage(c);
+      m.close(); save(); sfx.buff();
+      if (after > before) { banner(after === 2 ? 'FULL ART' : 'ALT ART', cardName(c) + ' grew!', after === 2 ? '#ff4fd8' : '#ffd166'); sfx.reveal(after === 2 ? 'M' : 'R'); }
+      arr.render(); done();
+    }); grid.append(el); });
+  }
+  function relicPick(done) {
+    const choices = R.relicChoices(run, 2);
+    if (!choices.length) { run.coins += 20; save(); refreshTop(); return done(); }
+    const m = modal([h('div', { class: 'h2' }, 'Pick one'), h('div', { class: 'sub' }, 'Only one fits in your bag.'),
+      ...choices.map(id => h('button', { class: 'relic-choice', onclick: () => { R.takeRelic(run, id); m.close(); sfx.reveal('R'); save(); refreshTop(); arr.render(); done(); },
+        html: `${icon(RELICS[id].icon)}<div><b>${RELICS[id].name}</b><span>${RELICS[id].text}</span></div>` }))]);
+  }
   const arr = arranger(run, { onChange: save, merge: true });
-  showInfo();
-  scr.append(topbarRun([planBtn]), head, room, info, arr.detail, arr.el);
+  showInfo(); refreshTop();
+  scr.append(top, head, room, info, arr.detail, arr.el);
   mount(scr);
+  const stole = run.thiefStruck; if (stole) { run.thiefStruck = 0; save(); setTimeout(() => { toast(`${icon('assassin-pocket')} <b>The thief!</b> A hand in your pocket — ${stole} coins gone.`, 3000); sfx.back(); }, 700); }
   if (fresh && run.floor === 0 && run.act === 1 && !meta.seen) {
     meta.seen = true; saveMeta();
-    setTimeout(() => modal([h('div', { class: 'h2' }, 'How HOLO works'),
-      h('div', { class: 'sub', style: { 'font-size': '14px', 'margin-top': '8px' }, html: `
-        <p><b style="color:#fff">Your row of 6 cards fires left → right</b> every round of a fight. Order matters: buffs boost the card after them, Mirror copies the card to its left.</p>
-        <p><b style="color:#fff">Cards in your row grow</b> as they fire — into Alt Art, then Full Art. Bench cards don't grow.</p>
-        <p><b style="color:#fff">Win fights → rip packs.</b> Keep the pulls you like, merge duplicates for ★, and sell the rest for coins.</p>
-        <p><b style="color:#fff">The shop is closed and dark.</b> Pick a door, room by room. Beat three bosses to win. If your HP hits 0, the run is over.</p>` }),
-      h('button', { class: 'btn gold', style: { width: '100%', 'margin-top': '6px' }, onclick: e => e.target.closest('.modal-bg').remove() }, "Let's rip")]), 400);
-  }
+    setTimeout(() => {
+      const m = modal([h('div', { class: 'h2' }, 'How HOLO works'),
+        h('div', { class: 'sub', style: { 'font-size': '14px', 'margin-top': '8px' }, html: `
+          <p><b style="color:#fff">Your row of 6 cards fires left → right</b> every round of a fight. Order matters: buffs boost the card after them, Mirror copies the card to its left.</p>
+          <p><b style="color:#fff">Cards in your row grow</b> as they fire — into Alt Art, then Full Art. Bench cards don't grow.</p>
+          <p><b style="color:#fff">Win fights → rip packs.</b> Keep the pulls you like, merge duplicates for ★, and sell the rest for coins.</p>
+          <p><b style="color:#fff">Explore the closed shop</b> room by room. Poke at what's lying around, pick a door, beat three bosses.</p>` }),
+        h('button', { class: 'btn gold', style: { width: '100%', 'margin-top': '6px' }, onclick: () => { m.close(); nightModal(true); } }, "Let's rip")]);
+    }, 400);
+  } else if (fresh && run.floor === 0 && run.act === 1 && !run.night.seen) { run.night.seen = true; save(); setTimeout(() => nightModal(true), 400); }
+  if (run.floor === 0 && run.act === 1) { run.night.seen = true; save(); }
 }
 
 function enter(id) {
   const nd = R.enterNode(run, id);
+  const stole = X.thiefOnEnter(run); if (stole) run.thiefStruck = stole;
   if (nd.type === 'fight' || nd.type === 'elite' || nd.type === 'boss') { R.startBattle(run, nd.type); save(); return battleFlow(); }
   if (nd.type === 'shop') run.pending = { type: 'node', node: 'shop', shop: R.makeShop(run), line: shopLine() };
   if (nd.type === 'rest') run.pending = { type: 'node', node: 'rest' };

@@ -1,9 +1,9 @@
 // Shared UI helpers: DOM builder, icons, card rendering, tilt/shine, arranger, modals.
-import { ICONS } from './icons.js?v=17';
-import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=17';
-import { cardText, cardValues, activeBonuses, growStage, growProgress, cardName, canGrow } from './engine.js?v=17';
-import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=17';
-import { sfx } from './audio.js?v=17';
+import { ICONS } from './icons.js?v=19';
+import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=19';
+import { cardText, cardValues, activeBonuses, growStage, growProgress, cardName, canGrow } from './engine.js?v=19';
+import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=19';
+import { sfx } from './audio.js?v=19';
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -319,6 +319,14 @@ export function setChips(run, disabled = {}) {
   return el;
 }
 
+// short rules reminders for status words on the card
+const KW = [
+  [/Poison/, 'Poison: hurts at the end of every round and never fades on enemies — it only stacks up.'],
+  [/Burn/, 'Burn: hurts at the end of every round, then drops by 1.'],
+  [/Thorns/, 'Thorns: hurt an enemy each time it hits you. Halve every round.'],
+  [/Block/, 'Block: soaks up damage. Gone at the end of the round.'],
+];
+function kwNote(def) { return KW.filter(([re]) => re.test(def.text || '')).map(([, t]) => `<br><span class="kw">${t}</span>`).join(''); }
 function growNote(c) {
   if (!canGrow(c)) return 'Passive: does not grow.';
   const g = growProgress(c), b = CARDS[c.id].bloom;
@@ -336,6 +344,6 @@ export function detailSheet(c, actions = [], extraNote = '') {
   return h('div', { class: 'detail' }, card, h('div', { class: 'info' },
     h('div', { class: 'h2' }, cardName(c) + ((c.star || 1) > 1 ? ' ' + '★'.repeat(c.star) : '')),
     h('div', { class: 't', html: cardText(c) }),
-    h('div', { class: 'm', html: `${SETS[def.set].name} · ${RARITY[def.r].name}${ed.desc ? ' · ' + ed.desc : ''}<br>${growNote(c)}${extraNote ? '<br>' + extraNote : ''}` }),
+    h('div', { class: 'm', html: `${SETS[def.set].name} · ${RARITY[def.r].name}${ed.desc ? ' · ' + ed.desc : ''}<br>${growNote(c)}${kwNote(def)}${extraNote ? '<br>' + extraNote : ''}` }),
     acts));
 }

@@ -38,6 +38,30 @@ He asked to keep improving until session usage runs out, and to use Fable (model
       Room .lamp CSS is scoped to .room (battle has its own .lamp!). Prop icons re-added to icons.js (were Vintage-era).
 - NEXT ideas: Mathias's phone feel test; maybe door variety per type (shop door with window, boss door chains).
 
+## 2026-11-15 (later) "Didn't get better" → nights, things to do in every room, more cards, full balance pass
+Mathias: runs samey, nothing to do, flashlight bad; likes S&G's world+art; keep growing cards; art same as rest of HOLO.
+- Flashlight REMOVED (commit fe629d7). Rooms stay drawn (CSS), silhouette props now 2 (PROP_SPOTS sl-hi/sr-hi).
+- js/explore.js (pure): a different NIGHT story each run (blackout/flood/thief/ghost/delivery — goal token x/need, reward),
+  ITEMS (key/crowbar/code, max 4 "pockets"), SPOTS in each room (bin, case: key/pry/risky smash, vend, critter, till, lost,
+  shelf=polish xp, pack, secret + the night's goal spot). roomSpots seeded by roomKey; doSpot → {out:[coins|hp|item|pack|xp|
+  relic|tactic|token|goalDone|nothing], say}. thiefOnEnter steals coins on the thief night. UI = roomScreen in main.js
+  (spot buttons fl/fr/sl/sr, info panel with action buttons, night chip + pockets in header, nightModal at run start).
+- Sim explores too (env NOEXPLORE=1 to switch off). Exploring ≈ +10pp win before tuning; tuned down coin/pack payouts.
+- 19 NEW cards → 97 total. New 8th set BLOOM (growth: sprout, seedling, pollen, thorn_vine, graft, bloom_burst, compost,
+  overgrowth, old_oak, pruning, hothouse P, world_tree M) + cinder_toss, nettle, drawbridge, last_call, cash_stack,
+  shadow_bargain, reprint. SET_BONUS.bloom: 2 +1 growth/fire · 4 +3/hit for Alt/Full · 6 Full Art fires twice.
+- Card audit tool: `node tests/cards.mjs 120` (real fights; random / themed / best-slot gain vs Jab). Fixed Rares < Commons.
+- Rule changes: Thorns HALVE every round (iron made bosses trivial). Poison on ENEMIES NEVER FADES (Venom identity: slow
+  stack; Burn = hits hard & fades). Venom 2 = +2 Poison, 4 = +4/hit on Poisoned. Iron 2 = 3 Block/round, 4 keeps 1/3.
+  Mirror/Echo copy the card to the right when first. Detail sheet shows short rules notes for Poison/Burn/Thorns/Block (ui.js KW).
+- ACT_DMG {1.4, 2.0, 2.5}.
+- Kip STEADY 6→4 Block. Heat 2 = enemies hit 25% harder (was 15%).
+- Balance result (sim, 200–250 runs): heat 0 Kip 75.6% · Wick 62.8% · Glint 61.6%; heat 8 Kip 44% · Wick 34% · Glint 38.5%.
+- GOTCHA: sim PERCARD "set win %" counts the row at run END → biased (cards held in early losses look bad). Venom read 36%
+  there while the fight audit (tests/cards.mjs) shows Toxin/Venom Spit among the strongest commons. Causal check:
+  STARTWITH=id node tests/sim.mjs N hero heat (starts the run with that card in slot 4) — slow and ±4pp noisy.
+- NEXT: Mathias's phone feel test of nights/rooms; maybe Kip a touch harder; watch venom in real play.
+
 ## REMOVED 2026-11-15: "The Back Room" (Mathias found it weird → "just drop it")
 Code rolled back to 24bda6f (merge rework kept) + the tougher ACT_HP/ACT_DMG kept. Vintage set, Credit, collection, Deck Box,
 grading, customers all gone. meta.js drops old Back Room keys and discards saved runs holding unknown card ids.

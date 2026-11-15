@@ -16,16 +16,16 @@ const dealt = B => B.ev.filter(e => e.t === 'dmg' && e.side === 'e').reduce((s, 
 { const B = battle([card('jab', 'normal', 3)]); playRound(B); ok(dealt(B) === 8, '★3 ×2.1 → 8'); }
 { const B = battle([card('jab'), card('mirror')]); playRound(B); ok(dealt(B) === 8, 'mirror copies left'); }
 { const B = battle([card('overclock'), card('jab')]); playRound(B); ok(dealt(B) === 8, 'overclock doubles right'); }
-{ const B = battle([card('whetstone'), card('jab')]); playRound(B); ok(dealt(B) === 7, 'whetstone +3 next'); }
-{ const B = battle([card('whetstone'), card('cinder_heart'), card('jab')]); playRound(B); ok(dealt(B) === 7, 'buff skips passive to next firing card'); }
+{ const B = battle([card('whetstone'), card('jab')]); playRound(B); ok(dealt(B) === 10, 'whetstone deals 2, next +4'); }
+{ const B = battle([card('whetstone'), card('cinder_heart'), card('jab')]); playRound(B); ok(dealt(B) === 10, 'buff skips passive to next firing card'); }
 { const B = battle([card('hollow'), card('blood_pact')]); playRound(B); ok(dealt(B) === 20, 'hollow silences right'); }
 { const B = battle([card('jab'), card('jab'), card('metronome')]); playRound(B); ok(dealt(B) === 12, 'metronome scales with cards fired'); }
 { const B = battle([card('spring'), card('jab')]); playRound(B); ok(dealt(B) === 14, 'spring big when first'); }
 { const B = battle([card('jab'), card('spring')]); playRound(B); ok(dealt(B) === 7, 'spring small when not first'); }
 { const B = battle([card('spring'), card('spring')]); playRound(B); ok(dealt(B) === 16, 'clock-2 bonus: first card fires twice'); }
-{ const B = battle([card('kindling')], ['tape_golem']); playRound(B); ok(B.enemies[0].burn === 3, 'burn ticks down by 1 after tick'); }
-{ const B = battle([card('kindling'), card('cinder_heart')]); playRound(B); ok(B.enemies[0].burn === 5, 'cinder heart keeps burn (+1 from ember-2)'); }
-{ const B = battle([card('kindling')], ['tape_golem'], { perk: 'kindled' }); playRound(B); ok(B.enemies[0].burn === 4, 'kindled +1 burn'); }
+{ const B = battle([card('kindling')], ['tape_golem']); playRound(B); ok(B.enemies[0].burn === 2, 'burn ticks down by 1 after tick (kindling 3)'); }
+{ const B = battle([card('kindling'), card('cinder_heart')]); playRound(B); ok(B.enemies[0].burn === 7, 'cinder heart keeps burn (3 +3 heart +1 ember-2)'); }
+{ const B = battle([card('kindling')], ['tape_golem'], { perk: 'kindled' }); playRound(B); ok(B.enemies[0].burn === 3, 'kindled +1 burn'); }
 { // shredder shreds leftmost on its 2nd move
   const B = battle([card('jab'), card('jab'), card('guard')], ['shredder']);
   playRound(B); ok(!B.disabled[0], 'no shred round 1'); playRound(B); ok(B.disabled[0] === 'shred', 'shred round 2 leftmost');
@@ -63,11 +63,11 @@ const dealt = B => B.ev.filter(e => e.t === 'dmg' && e.side === 'e').reduce((s, 
 
 // ---- expansion mechanics ----
 import { useTactic, setCounts } from '../js/engine.js';
-{ const B = battle([card('amplifier'), card('jab')]); playRound(B); ok(dealt(B) === 6, 'amplifier ×1.5'); }
-{ const B = battle([card('amplifier'), card('amplifier'), card('jab')]); playRound(B); ok(dealt(B) === 9, 'amps stack multiplicatively (2.25)'); }
+{ const B = battle([card('amplifier'), card('jab')]); playRound(B); ok(dealt(B) === 7, 'amplifier ×1.75'); }
+{ const B = battle([card('amplifier'), card('amplifier'), card('jab')]); playRound(B); ok(dealt(B) === 12, 'amps stack multiplicatively (×3.06)'); }
 { const B = battle([card('jab'), card('jab'), card('jab'), card('finale')]); playRound(B); ok(dealt(B) === 12 + 9, 'finale 3×combo'); }
 { const t = card('trophy'); const B = battle([t], ['paper_plane']); autoFight(B, 10); ok(t.grow === 2, 'trophy grows on kill, persists on instance'); }
-{ const sb = card('snowball'); const B = battle([sb]); playRound(B); playRound(B); ok(sb.grow === 2, 'snowball grows each fire'); }
+{ const sb = card('snowball'); const B = battle([sb]); playRound(B); playRound(B); ok(sb.grow === 4, 'snowball grows +2 each fire'); }
 { const B = battle([card('kindling'), card('ember_fang'), card('flare'), card('firebreath')]); const n = setCounts(B.row); ok(n.ember === 4, 'set count'); playRound(B);
   const burnTicks = B.ev.filter(e => e.t === 'dmg' && e.kind === 'burn').length; ok(burnTicks === 2, 'ember-4: burn ticks twice'); }
 { // strike on an empty slot misses
@@ -146,6 +146,22 @@ function window_r(x) { return globalThis.__C[x.id].r; }
   ok(new Set(icons).size === icons.length, 'every card has a unique illustration');
   const glyphs = new Set(Object.values(SETS).map(s => s.glyph));
   ok(Object.values(CARDS).every(c => !glyphs.has(c.icon)), 'no card art equals a set symbol');
+}
+// ---- new cards & reworked intents ----
+{
+  { const B = battle([card('mirror'), card('jab')]); playRound(B); ok(dealt(B) === 8, 'mirror first in row copies the RIGHT card'); }
+  { const B = battle([card('jab'), card('cuckoo')]); playRound(B); ok(dealt(B) === 8, 'cuckoo at the end fires the FIRST card'); }
+  { const B = battle([card('jab'), card('last_call')]); playRound(B); ok(dealt(B) === 4 + 12, 'last call triples when last'); }
+  { const B = battle([card('last_call'), card('jab')]); playRound(B); ok(dealt(B) === 8, 'last call normal when not last'); }
+  { const B = battle([card('shadow_bargain'), card('jab'), card('jab')]); playRound(B); ok(dealt(B) === 16, 'shadow bargain: next 2 fire twice'); }
+  { const s = card('jab'); const B = battle([card('seedling'), s]); playRound(B); ok(s.xp === 3, 'seedling grows the right card (+2) and it grows +1 firing'); }
+  { const sp = card('sprout'); const B = battle([sp]); playRound(B); ok(sp.xp === 2, 'sprout grows twice as fast'); }
+  { const a = card('jab'), b = card('jab'); const B = battle([a, card('graft'), b]); playRound(B); ok(a.xp === 4 && b.xp === 4, 'graft grows both neighbours'); }
+  { const j = card('jab'); j.xp = 40; const B = battle([card('bloom_burst'), j]); playRound(B); ok(dealt(B) === 12 + 6, 'bloom burst counts stages (Full=2): 4×3 + jab 6'); }
+  { const j = card('jab'); j.xp = 40; const B = battle([j, card('world_tree')]); playRound(B); ok(dealt(B) === 20, 'world tree: Full Art fires twice, +2 per hit: 8, then 12 (Haymaker made it Vulnerable)'); }
+  { const a = card('jab'); const B = battle([a, card('hothouse')]); playRound(B); ok(a.xp === 4, 'hothouse grows the row +3 at fight start'); }
+  { const B = battle([card('jab'), card('reprint')]); const j = B.row[0]; j.xp = 5; playRound(B); ok(dealt(B) === 8, 'reprint fires the most-grown card'); }
+  { const B = battle([card('drawbridge')], ['tape_golem']); playRound(B); ok(dealt(B) >= 4, 'drawbridge deals half its block'); }
 }
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

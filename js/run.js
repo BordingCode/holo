@@ -1,9 +1,10 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=17';
-import { makeRng, hashStr } from './rng.js?v=17';
-import { createBattle, ROW_SIZE } from './engine.js?v=17';
+import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=19';
+import { makeRng, hashStr } from './rng.js?v=19';
+import { createBattle, ROW_SIZE } from './engine.js?v=19';
+import { startNight } from './explore.js?v=19';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;
@@ -19,7 +20,7 @@ export function rngOf(run) {
 export const HEAT = [
   'Standard run.',
   'Enemies have +15% HP.',
-  'Enemies hit 15% harder.',
+  'Enemies hit 25% harder.',
   'Fights pay 20% fewer coins.',
   'Elites and bosses have +25% HP.',
   'Start with 10% less max HP.',
@@ -30,9 +31,9 @@ export const HEAT = [
 
 export function enemyMods(run, kind) {
   const h = run.heat;
-  const ACT_HP = { 1: 1.3, 2: 2.15, 3: 3.0 }, ACT_DMG = { 1: 1.3, 2: 1.85, 3: 2.3 };
+  const ACT_HP = { 1: 1.3, 2: 2.15, 3: 3.0 }, ACT_DMG = { 1: 1.4, 2: 2.0, 3: 2.5 };
   let hpMult = (ACT_HP[run.act] || 1) * (1 + (h >= 1 ? 0.15 : 0) + ((kind === 'elite' || kind === 'boss') && h >= 4 ? 0.25 : 0) + (h >= 6 && run.act >= 2 ? 0.15 : 0));
-  const dmgMult = (ACT_DMG[run.act] || 1) * (h >= 2 ? 1.15 : 1);
+  const dmgMult = (ACT_DMG[run.act] || 1) * (h >= 2 ? 1.25 : 1);
   const str = kind === 'boss' && h >= 7 ? 5 : 0;
   return { hpMult, dmgMult, str };
 }
@@ -62,7 +63,7 @@ export function newRun({ hero = 'kip', heat = 0, seed, daily = false, unlockedSe
   const run = {
     v: 1, seed, rngState: seed, daily, hero, heat, hp: maxHp, maxHp, coins: H.coins,
     row: Array(ROW_SIZE).fill(null), bench: Array(BENCH_SIZE).fill(null), uid: 1,
-    act: 1, map: null, pos: null, floor: 0, sets: unlockedSets || ['base', 'ember', 'venom', 'iron'],
+    act: 1, map: null, pos: null, floor: 0, sets: unlockedSets || ['base', 'ember', 'venom', 'iron', 'bloom'],
     stats: { fights: 0, elites: 0, bosses: 0, packs: 0, pulls: [], dmgBest: 0, coinsEarned: 0 },
     pending: null, over: null, startedAt: Date.now(),
     tactics: [], relics: [], pity: 0,
@@ -70,6 +71,7 @@ export function newRun({ hero = 'kip', heat = 0, seed, daily = false, unlockedSe
   H.start.forEach((id, k) => { run.row[k] = newCard(run, id); });
   run.map = genMap(run, 1);
   run.tactics.push(randomTactic(run, 'C'));
+  startNight(run);
   return run;
 }
 
@@ -204,7 +206,7 @@ export function finishBattle(run, B) {
   let coins = kind === 'boss' ? 45 : kind === 'elite' ? 22 : rng.int(8, 12) + run.act * 2;
   coins = Math.round(coins * coinScale);
   let interest = 0;
-  if (hasPassive(run, 'interest')) interest = Math.min(8, Math.floor(run.coins / 5));
+  if (hasPassive(run, 'interest')) interest = Math.min(10, Math.floor(run.coins / 4));
   run.coins += coins + interest; run.stats.coinsEarned += coins + interest;
   const packs = [];
   let tactic = null, relics = null;

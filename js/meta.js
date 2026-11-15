@@ -1,5 +1,5 @@
 // HOLO persistence: meta-progress (binder, unlocks, heat) + the in-progress run.
-import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=17';
+import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=19';
 
 const META_KEY = 'holo.meta.v1', RUN_KEY = 'holo.run.v1';
 
@@ -52,7 +52,7 @@ export const UNLOCKS = [
 
 export function unlocked(id) { const u = UNLOCKS.find(u => u.id === id); return u ? !!u.test() : true; }
 export function unlockedSets() {
-  return SET_ORDER.filter(s => ['base', 'ember', 'venom', 'iron'].includes(s) || unlocked(s));
+  return SET_ORDER.filter(s => ['base', 'ember', 'venom', 'iron', 'bloom'].includes(s) || unlocked(s));
 }
 export function heroUnlocked(h) { return h === 'kip' || unlocked(h); }
 export function snapshotUnlocks() { return UNLOCKS.filter(u => u.test()).map(u => u.id); }
