@@ -13,7 +13,7 @@ const ONLY = process.argv[3] ? process.argv[3].split(',') : null;
 const POOL = CARD_LIST.map(c => c.id);
 const rng = makeRng(1234);
 const mk = (id, ed = 'normal', star = 1) => ({ uid: Math.random(), id, ed, star });
-const ALLSETS = ['base', 'ember', 'venom', 'iron', 'bloom', 'clock', 'gilded', 'void'];
+const ALLSETS = ['base', 'ember', 'venom', 'iron', 'clock', 'gilded', 'void'];
 
 function fightScore(ctx, row) {
   const run = R.newRun({ hero: 'kip', seed: ctx.seed, unlockedSets: ALLSETS });

@@ -1,10 +1,10 @@
 // The pack-opening ritual: tear → reveal (charged rares) → place your pulls.
-import { CARDS, RARITY, EDITIONS, PACKS, RARITY_RANK } from './data.js?v=19';
-import { h, $, icon, cardEl, mergeActions, attachTilt, idleShimmer, enableGyro, packColors, packName, packIcon, arranger, toast, detailSheet, pillCoins } from './ui.js?v=19';
-import { sfx } from './audio.js?v=19';
-import { burst, centerOf, shake, banner, RARITY_FX } from './fx.js?v=19';
-import { recordPull, saveMeta, meta } from './meta.js?v=19';
-import { sellValue, allOwned, mergeTargets, mergeOutcome } from './run.js?v=19';
+import { CARDS, RARITY, EDITIONS, PACKS, RARITY_RANK } from './data.js?v=20';
+import { h, $, icon, cardEl, mergeActions, attachTilt, idleShimmer, enableGyro, packColors, packName, packIcon, arranger, toast, detailSheet, pillCoins } from './ui.js?v=20';
+import { sfx } from './audio.js?v=20';
+import { burst, centerOf, shake, banner, RARITY_FX } from './fx.js?v=20';
+import { recordPull, saveMeta, meta } from './meta.js?v=20';
+import { sellValue, allOwned, mergeTargets, mergeOutcome } from './run.js?v=20';
 
 // result = {type, set, cards, tell, mustKeep}; ctx = {run, app, save, done()}
 export function packScreen(ctx, result, { skipTear = false } = {}) {

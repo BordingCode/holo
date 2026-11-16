@@ -119,28 +119,9 @@ import { useTactic, setCounts } from '../js/engine.js';
 
 function window_r(x) { return globalThis.__C[x.id].r; }
 
-// ---- growth: Alt Art / Full Art ----
+// ---- every card has its own illustration ----
 {
-  const { GROWTH, SETS } = await import('../js/data.js');
-  const { growStage, cardText, cardName, cardValues } = await import('../js/engine.js');
-  const j = card('jab'); const B = battle([j], ['tape_golem'], { hp: 999, maxHp: 999 });
-  B.enemies[0].hp = B.enemies[0].maxHp = 99999;
-  let fires = 0; for (let i = 0; i < 5; i++) fires += playRound(B).filter(e => e.t === 'fire' && e.uid === j.uid).length;
-  ok(fires >= 3 && j.xp === fires, 'a row card grows +1 each time it fires (fires ' + fires + ', xp ' + j.xp + ')');
-  const h = card('jab', 'holo'); const B2 = battle([h, card('overclock')], ['tape_golem']); B2.enemies[0].hp = 99999;
-  playRound(B2); ok(h.xp <= GROWTH.perRound, 'growth capped per round');
-  ok(growStage({ id: 'jab', xp: GROWTH.alt - 1 }) === 0 && growStage({ id: 'jab', xp: GROWTH.alt }) === 1 && growStage({ id: 'jab', xp: GROWTH.full }) === 2, 'stage thresholds');
-  ok(growStage({ id: 'phoenix', xp: 999 }) === 0, 'passives never grow');
-  ok(cardValues({ id: 'jab', xp: GROWTH.alt }).v.d === 5 && cardValues({ id: 'jab', xp: GROWTH.full }).v.d === 6, 'Alt ×1.3, Full ×1.6 (jab 4 → 5 → 6)');
-  ok(cardName({ id: 'jab', xp: GROWTH.full }) === 'Haymaker' && cardName({ id: 'jab', xp: GROWTH.alt }) === 'Jab', 'starter gets a named Full Art form');
-  ok(/Burn/.test(cardText({ id: 'wildfire', xp: GROWTH.alt })) && !/Then/.test(cardText({ id: 'wildfire' })), 'no-number cards get a bonus at Alt Art');
-  { const m = card('mirror'); m.xp = GROWTH.alt; const B3 = battle([card('jab'), m]); playRound(B3); ok(dealt(B3) === 11, 'Alt Art mirror: copy (4) + jab (4) + bloom 3 = 11, got ' + dealt(B3)); }
-  { // bench cards don't grow: only row instances
-    const b = card('jab'); const B4 = battle([card('jab')]); B4.bench = [b]; playRound(B4); ok(!b.xp, 'bench card does not grow'); }
-  { const B5 = battle([card('jab', 'normal', 1)], ['paper_clip'], { hp: 99, maxHp: 99 }); B5.enemies[0].hp = 1;
-    playRound(B5); ok(B5.row[0].xp === 1 + GROWTH.kill, 'kill gives extra growth'); }
-  { const run = R.newRun({ hero: 'kip', seed: 3 }); const t = run.row[0]; t.xp = 3; const a = { ...card('jab'), xp: 20 };
-    R.mergeInto(run, t, a); ok(t.xp === 20, 'merging keeps the bigger growth'); }
+  const { SETS } = await import('../js/data.js');
   // every card has its own illustration, different from every set symbol
   const icons = Object.values(CARDS).map(c => c.icon);
   ok(new Set(icons).size === icons.length, 'every card has a unique illustration');
@@ -154,13 +135,6 @@ function window_r(x) { return globalThis.__C[x.id].r; }
   { const B = battle([card('jab'), card('last_call')]); playRound(B); ok(dealt(B) === 4 + 12, 'last call triples when last'); }
   { const B = battle([card('last_call'), card('jab')]); playRound(B); ok(dealt(B) === 8, 'last call normal when not last'); }
   { const B = battle([card('shadow_bargain'), card('jab'), card('jab')]); playRound(B); ok(dealt(B) === 16, 'shadow bargain: next 2 fire twice'); }
-  { const s = card('jab'); const B = battle([card('seedling'), s]); playRound(B); ok(s.xp === 3, 'seedling grows the right card (+2) and it grows +1 firing'); }
-  { const sp = card('sprout'); const B = battle([sp]); playRound(B); ok(sp.xp === 2, 'sprout grows twice as fast'); }
-  { const a = card('jab'), b = card('jab'); const B = battle([a, card('graft'), b]); playRound(B); ok(a.xp === 4 && b.xp === 4, 'graft grows both neighbours'); }
-  { const j = card('jab'); j.xp = 40; const B = battle([card('bloom_burst'), j]); playRound(B); ok(dealt(B) === 12 + 6, 'bloom burst counts stages (Full=2): 4×3 + jab 6'); }
-  { const j = card('jab'); j.xp = 40; const B = battle([j, card('world_tree')]); playRound(B); ok(dealt(B) === 20, 'world tree: Full Art fires twice, +2 per hit: 8, then 12 (Haymaker made it Vulnerable)'); }
-  { const a = card('jab'); const B = battle([a, card('hothouse')]); playRound(B); ok(a.xp === 4, 'hothouse grows the row +3 at fight start'); }
-  { const B = battle([card('jab'), card('reprint')]); const j = B.row[0]; j.xp = 5; playRound(B); ok(dealt(B) === 8, 'reprint fires the most-grown card'); }
   { const B = battle([card('drawbridge')], ['tape_golem']); playRound(B); ok(dealt(B) >= 4, 'drawbridge deals half its block'); }
 }
 console.log(`${pass} passed, ${fail} failed`);

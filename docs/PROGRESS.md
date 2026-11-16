@@ -38,6 +38,15 @@ He asked to keep improving until session usage runs out, and to use Fable (model
       Room .lamp CSS is scoped to .room (battle has its own .lamp!). Prop icons re-added to icons.js (were Vintage-era).
 - NEXT ideas: Mathias's phone feel test; maybe door variety per type (shop door with window, boss door chains).
 
+## 2026-11-16 ROLLBACK: original map back, card growing removed (Mathias: "walking was better before", "grow thing not intuitive")
+- mapScreen = the ORIGINAL dot map again (restored from 8456135). Rooms/doors/props/nights/spots/pockets REMOVED; js/explore.js deleted.
+  (audio.js still has unused listen/creak/explore music modes.)
+- Growth REMOVED everywhere: inst.xp, Alt/Full Art, GROWTH/GROW_MULT/BLOOM table, bloom event, growBar, st-1/st-2 CSS.
+  Bloom set (12 cards) + Reprint deleted → 84 cards in 7 sets. Trophy/Snowball/Piggy (per-card "grows FOREVER" text) stay.
+- Kept: 6 new non-Bloom cards, unique art, thorns halving, permanent enemy poison, keyword notes, card rebalance.
+- ACT_DMG {1.3, 1.7, 2.1}. Sim: heat0 Kip 67.2% · Wick 60.4% · Glint 54%; heat8 Wick 25.5%.
+- The section below is HISTORY (what was tried and rolled back).
+
 ## 2026-11-15 (later) "Didn't get better" → nights, things to do in every room, more cards, full balance pass
 Mathias: runs samey, nothing to do, flashlight bad; likes S&G's world+art; keep growing cards; art same as rest of HOLO.
 - Flashlight REMOVED (commit fe629d7). Rooms stay drawn (CSS), silhouette props now 2 (PROP_SPOTS sl-hi/sr-hi).
@@ -54,7 +63,7 @@ Mathias: runs samey, nothing to do, flashlight bad; likes S&G's world+art; keep 
 - Rule changes: Thorns HALVE every round (iron made bosses trivial). Poison on ENEMIES NEVER FADES (Venom identity: slow
   stack; Burn = hits hard & fades). Venom 2 = +2 Poison, 4 = +4/hit on Poisoned. Iron 2 = 3 Block/round, 4 keeps 1/3.
   Mirror/Echo copy the card to the right when first. Detail sheet shows short rules notes for Poison/Burn/Thorns/Block (ui.js KW).
-- ACT_DMG {1.4, 2.0, 2.5}.
+- ACT_DMG {1.4, 2.0, 2.5} (later lowered — see rollback).
 - Kip STEADY 6→4 Block. Heat 2 = enemies hit 25% harder (was 15%).
 - Balance result (sim, 200–250 runs): heat 0 Kip 75.6% · Wick 62.8% · Glint 61.6%; heat 8 Kip 44% · Wick 34% · Glint 38.5%.
 - GOTCHA: sim PERCARD "set win %" counts the row at run END → biased (cards held in early losses look bad). Venom read 36%

@@ -12,9 +12,8 @@ export const SETS = {
   clock:  { name: 'Clockwork', color: '#f2c14e', c2: '#8a5a12', glyph: 'cog' },
   gilded: { name: 'Gilded',    color: '#ffe07a', c2: '#a8741a', glyph: 'two-coins' },
   void:   { name: 'Void',      color: '#b07cff', c2: '#3a1470', glyph: 'portal' },
-  bloom:  { name: 'Bloom',     color: '#7be07a', c2: '#1f6b3a', glyph: 'flower-emblem' },
 };
-export const SET_ORDER = ['base', 'ember', 'venom', 'iron', 'bloom', 'clock', 'gilded', 'void'];
+export const SET_ORDER = ['base', 'ember', 'venom', 'iron', 'clock', 'gilded', 'void'];
 
 export const RARITY = {
   C: { name: 'Common',   color: '#d8d2c4', sell: 2 },
@@ -145,19 +144,6 @@ card('void', 'siphon', 'Siphon', 'U', 'heart-drop', { d: 9 }, 'Deal {d}. Heal ha
 card('void', 'event_horizon', 'Event Horizon', 'R', 'black-hole-bolas', { s: 4 }, 'Lose {s} HP. All damage for the rest of this round ×2.', (x, v) => { x.selfDmg(v.s); x.amp(2); }, { fixed: ['s'] });
 
 
-// ---------- Bloom: the growing set ----------
-card('bloom', 'sprout', 'Sprout', 'C', 'sprout', { d: 5 }, 'Deal {d}. Grows twice as fast.', (x, v) => x.hit(v.d), { growRate: 2 });
-card('bloom', 'seedling', 'Seedling', 'C', 'seedling', { b: 5, n: 2 }, 'Gain {b} Block. The card to the RIGHT grows +{n}.', (x, v) => { x.block(v.b); x.growNear(1, v.n); }, { fixed: ['n'] });
-card('bloom', 'pollen', 'Pollen Burst', 'C', 'pollen-dust', { d: 4 }, 'Deal {d} to ALL enemies.', (x, v) => x.hit(v.d, { all: true }));
-card('bloom', 'thorn_vine', 'Thorn Vine', 'C', 'vine-whip', { d: 3, n: 3 }, 'Deal {d}, +{n} for each Alt or Full Art card in your row.', (x, v) => x.hit(v.d + v.n * x.grownCount()));
-card('bloom', 'graft', 'Graft', 'U', 'tree-branch', { d: 4, n: 3 }, 'Deal {d}. The cards to the LEFT and RIGHT grow +{n}.', (x, v) => { x.hit(v.d); x.growNear(-1, v.n); x.growNear(1, v.n); }, { fixed: ['n'] });
-card('bloom', 'bloom_burst', 'Bloom Burst', 'U', 'sunflower', { d: 4 }, 'Deal {d}, +{d} for each growth stage in your row (Alt Art 1, Full Art 2).', (x, v) => x.hit(v.d * (1 + x.stages())));
-card('bloom', 'compost', 'Compost', 'U', 'flower-pot', { h: 4, n: 4 }, 'Heal {h}. The least-grown card in your row grows +{n}.', (x, v) => { x.heal(v.h); x.growLeast(v.n); }, { fixed: ['n'] });
-card('bloom', 'overgrowth', 'Overgrowth', 'U', 'thorny-tentacle', { d: 8 }, 'Deal {d}. At Full Art it fires twice.', (x, v) => x.hit(v.d), { fullTwice: true });
-card('bloom', 'old_oak', 'Old Oak', 'R', 'oak', { b: 6, n: 3 }, 'Gain {b} Block, +{n} for each growth stage in your row. Grows twice as fast.', (x, v) => x.block(v.b + v.n * x.stages()), { growRate: 2 });
-card('bloom', 'pruning', 'Pruning Shears', 'R', 'shears', { d: 12, n: 5 }, 'Deal {d}. If it kills, the card to the LEFT grows +{n}.', (x, v) => { const t = x.target; x.hit(v.d); if (t && t.dead) x.growNear(-1, v.n); }, { fixed: ['n'] });
-card('bloom', 'hothouse', 'Hothouse', 'R', 'greenhouse', { n: 3 }, 'PASSIVE. At the start of every fight, every card in your row grows +{n}.', null, { passive: 'hothouse', fixed: ['n'] });
-card('bloom', 'world_tree', 'World Tree', 'M', 'tree-growth', {}, 'PASSIVE. Full Art cards fire twice. Alt Art and Full Art cards deal +2 per hit.', null, { passive: 'worldTree' });
 // ---------- New cards for the other sets ----------
 card('ember', 'cinder_toss', 'Cinder Toss', 'C', 'fire-dash', { d: 2, burn: 1 }, 'Deal {d} to a random enemy 3 times. Apply {burn} Burn to the target.', (x, v) => { for (let i = 0; i < 3; i++) x.hit(v.d, { random: true }); x.burn(v.burn); });
 card('venom', 'nettle', 'Nettle', 'C', 'spiked-tentacle', { d: 5 }, 'Deal {d}. Double damage if the target is Poisoned.', (x, v) => x.hit(x.target && x.target.poison > 0 ? v.d * 2 : v.d));
@@ -165,39 +151,6 @@ card('iron', 'drawbridge', 'Drawbridge', 'R', 'drawbridge', { b: 8 }, 'Gain {b} 
 card('clock', 'last_call', 'Last Call', 'C', 'alarm-clock', { d: 4 }, 'Deal {d}. If it is the LAST card to fire this round, deal triple.', (x, v) => x.hit(x.isLast() ? v.d * 3 : v.d));
 card('gilded', 'cash_stack', 'Cash Stack', 'C', 'money-stack', { d: 3 }, 'Deal {d}, +1 for every 5 coins you hold (max +10).', (x, v) => x.hit(v.d + Math.min(10, Math.floor(x.B.coins / 5))));
 card('void', 'shadow_bargain', 'Shadow Bargain', 'R', 'shadow-follower', { s: 5 }, 'Lose {s} HP. The next 2 cards fire twice.', (x, v) => { x.selfDmg(v.s); x.overclockNext(2); }, { fixed: ['s'] });
-card('base', 'reprint', 'Reprint', 'U', 'paper-tray', {}, 'Fire the most-grown other card in your row again.', (x) => x.fireMostGrown());
-
-// ---------- Growth (Alt Art → Full Art) ----------
-// Every non-passive card in the ROW gains growth when it fires (+1, max 3 a round) and when it lands a
-// kill (+2). Bench cards don't grow. Alt Art: numbers ×1.3. Full Art: numbers ×1.6.
-// Cards with no numbers to scale get a hand-made bonus instead; the starters get a named Full Art form.
-export const GROWTH = { alt: 12, full: 32, perRound: 3, kill: 2 };
-export const GROW_MULT = [1, 1.3, 1.6];
-export const STAGE_NAMES = ['', 'Alt Art', 'Full Art'];
-const BLOOM = { // id: { from: stage it starts at, n: [_, at Alt, at Full], text: n => '', fire(x, n) }
-  wildfire:       { from: 1, n: [0, 3, 6], text: n => `Then apply ${n} Burn.`, fire: (x, n) => x.burn(n) },
-  shield_bash:    { from: 1, n: [0, 4, 8], text: n => `Then gain ${n} Block.`, fire: (x, n) => x.block(n) },
-  mirror:         { from: 1, n: [0, 3, 7], text: n => `Then deal ${n}.`, fire: (x, n) => x.hit(n) },
-  overclock:      { from: 1, n: [0, 4, 8], text: n => `Gain ${n} Block.`, fire: (x, n) => x.block(n) },
-  escapement:     { from: 1, n: [0, 4, 9], text: n => `Then deal ${n}.`, fire: (x, n) => x.hit(n) },
-  bribe:          { from: 1, n: [0, 1, 2], text: n => `Get ${n} coin${n > 1 ? 's' : ''} back.`, fire: (x, n) => x.coins(n) },
-  echoing_void:   { from: 1, n: [0, 2, 4], text: n => `Then heal ${n}.`, fire: (x, n) => x.heal(n) },
-  heat_sink:      { from: 1, n: [0, 2, 4], text: n => `Then apply ${n} Burn.`, fire: (x, n) => x.burn(n) },
-  retaliate:      { from: 1, n: [0, 1, 3], text: n => `Then gain ${n} Thorns.`, fire: (x, n) => x.thorns(n) },
-  cuckoo:         { from: 1, n: [0, 3, 7], text: n => `Then deal ${n}.`, fire: (x, n) => x.hit(n) },
-  event_horizon:  { from: 1, n: [0, 2, 5], text: n => `Then heal ${n}.`, fire: (x, n) => x.heal(n) },
-  // the starters' named Full Art forms
-  jab:        { from: 2, name: 'Haymaker',     n: [0, 0, 1], text: n => `Apply ${n} Vulnerable.`, fire: (x, n) => x.vuln(n) },
-  guard:      { from: 2, name: 'Bastion',      n: [0, 0, 2], text: n => `Gain ${n} Thorns.`, fire: (x, n) => x.thorns(n) },
-  whetstone:  { from: 2, name: 'Grindstone',   n: [0, 0, 4], text: n => `Gain ${n} Block.`, fire: (x, n) => x.block(n) },
-  ember_fang: { from: 2, name: 'Inferno Fang', n: [0, 0, 3], text: n => `Apply ${n} Burn to ALL.`, fire: (x, n) => x.burn(n, { all: true }) },
-  kindling:   { from: 2, name: 'Bonfire',      n: [0, 0, 4], text: n => `Gain ${n} Block.`, fire: (x, n) => x.block(n) },
-  pickpocket: { from: 2, name: 'Master Thief', n: [0, 0, 2], text: n => `Gain ${n} more coins.`, fire: (x, n) => x.coins(n) },
-  reprint:        { from: 1, n: [0, 3, 7], text: n => `Then deal ${n}.`, fire: (x, n) => x.hit(n) },
-  shadow_bargain: { from: 1, n: [0, 2, 4], text: n => `Gain ${n} Block.`, fire: (x, n) => x.block(n) },
-  coin_toss:  { from: 2, name: 'Loaded Coin',  n: [0, 0, 6], text: n => `Whatever the flip, deal ${n}.`, fire: (x, n) => x.hit(n) },
-};
-for (const [id, b] of Object.entries(BLOOM)) { const c = C.find(c => c.id === id); if (!c) throw new Error('bloom for unknown card ' + id); c.bloom = b; }
 
 export const CARDS = Object.fromEntries(C.map(c => [c.id, c]));
 export const CARD_LIST = C;
@@ -305,7 +258,6 @@ export const SET_BONUS = {
   iron:   [[2, 'Start every round with 3 Block.'], [4, 'Keep a third of your Block between rounds.'], [6, 'Gain 3 Thorns every round.']],
   clock:  [[2, 'Your FIRST card fires twice.'], [4, 'Your LAST card fires twice too.'], [6, 'Every 3rd round your whole row fires twice.']],
   gilded: [[2, 'Gain 2 coins for every enemy defeated.'], [4, 'Hits deal +1 per 10 coins you hold (max +6).'], [6, 'Gain 4 coins every round.']],
-  bloom:  [[2, 'Cards in your row grow +1 extra each time they fire.'], [4, 'Alt Art and Full Art cards deal +3 per hit.'], [6, 'Your Full Art cards fire twice.']],
   void:   [[2, 'HP you lose to your own cards is 1 less.'], [4, 'Losing HP charges your next hit with +6.'], [6, 'Void cards fire twice.']],
 };
 

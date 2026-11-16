@@ -1,15 +1,13 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=19';
-import * as R from './run.js?v=19';
-import * as X from './explore.js?v=19';
-import { hashStr } from './rng.js?v=19';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=19';
-import { packScreen } from './pack.js?v=19';
-import { battleScreen } from './battle.js?v=19';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=19';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX, floatText } from './fx.js?v=19';
-import { canGrow, growStage, cardName } from './engine.js?v=19';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=19';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=20';
+import * as R from './run.js?v=20';
+import { hashStr } from './rng.js?v=20';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=20';
+import { packScreen } from './pack.js?v=20';
+import { battleScreen } from './battle.js?v=20';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=20';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=20';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=20';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -225,12 +223,13 @@ function relicPicker(choices, onPick, title = 'Choose a relic') {
   return wrap;
 }
 
-// ---- the floor plan (the old node map) — now a crumpled plan you can peek at ----
-function floorPlan() {
+function mapScreen(fresh) {
+  music('calm');
+  const scr = h('div', { class: 'screen' });
   const rows = run.map.rows;
   const RH = 96, H = rows.length * RH + 70;
   const can = new Set(R.reachable(run));
-  const scrollEl = h('div', { class: 'map-scroll plan' });
+  const scrollEl = h('div', { class: 'map-scroll' });
   const map = h('div', { class: 'map', style: { height: H + 'px' } });
   const pos = (nd) => ({ x: nd.x * 100, y: H - 50 - nd.r * RH });
   let svg = `<svg class="paths" viewBox="0 0 100 ${H}" preserveAspectRatio="none">`;
@@ -246,221 +245,34 @@ function floorPlan() {
     const el = h('div', { class: `node ${nd.type === 'boss' ? 'boss' : ''}${nd.done ? ' done' : ''}${run.pos === nd.id ? ' here' : ''}${can.has(nd.id) ? ' can' : ''}`, style: { left: p.x + '%', top: p.y + 'px', '--nc': N.color } });
     el.innerHTML = icon(nd.type === 'boss' ? ENEMIES[R.pickBossId(run)].icon : N.icon) + `<span class="lbl">${nd.type === 'boss' ? ENEMIES[R.pickBossId(run)].name : N.label}</span>`
       + (nd.type === 'elite' && nd.loot && SETS[nd.loot] && !nd.done ? `<span class="loottag" style="--k:${SETS[nd.loot].color}">${icon(SETS[nd.loot].glyph)}${SETS[nd.loot].name}</span>` : '');
+    if (can.has(nd.id)) el.addEventListener('click', () => { sfx.tap(); enter(nd.id); });
     map.append(el);
   }
   scrollEl.append(map);
   const legend = h('div', { class: 'legend', html: Object.entries(NODE).filter(([k]) => k !== 'boss').map(([k, n]) => `<span style="color:${n.color}">${icon(n.icon).replace('<svg', `<svg style="fill:${n.color}"`)}${n.label}</span>`).join('') });
-  const m = modal([h('div', { class: 'h2' }, 'Crumpled floor plan'), h('div', { class: 'sub' }, `${ACT_NAME[run.act]} — someone sketched every room on this floor.`), legend, scrollEl,
-    h('button', { class: 'btn ghost', style: { width: '100%', 'margin-top': '8px' }, onclick: () => m.close() }, 'Fold it away')]);
+  const banner2 = h('div', { class: 'actbanner' }, h('div', { class: 'sub', style: { 'font-weight': 900, 'letter-spacing': '.2em' } }, `ACT ${run.act} · FLOOR ${run.floor}${run.daily ? ' · DAILY' : ''}${run.heat ? ' · HEAT ' + run.heat : ''}`), h('div', { class: 'h2' }, ACT_NAME[run.act]));
+  const arr = arranger(run, { onChange: save, merge: true });
+  scr.append(topbarRun(), banner2, legend, scrollEl, arr.detail, arr.el);
+  mount(scr);
+  // scroll so the next choices are visible
   requestAnimationFrame(() => {
     const curRow = run.pos == null ? 0 : R.nodeById(run, run.pos).r + 1;
     scrollEl.scrollTop = Math.max(0, H - 50 - curRow * RH - scrollEl.clientHeight * 0.6);
   });
-}
-
-// ---- the room you stand in, with a door for every way forward ----
-const ROOM_NAMES = {
-  1: ['Sale Bin Corner', 'Aisle 2 — Sleeves', 'The Dusty Stockroom', 'Bulk Box Alley', 'Under the Stairs', 'The Mop Closet', 'Aisle 5 — Starter Decks', 'The Loading Dock', 'Returns Counter', 'Clearance Rack'],
-  2: ['The Glass Corridor', 'Aisle 9 — Premium', 'The Spotlit Alcove', 'The Velvet Rope', 'Locked Cabinets', 'The Mirror Hall', 'Collector\'s Nook', 'Preorder Shelf', 'The Window Display', 'Auction Corner'],
-  3: ['The Shredder Room', 'Staff Only', 'The Vault Door', 'Old Ledgers', 'The Cold Archive', 'The Office', 'Boxes Nobody Opened', 'The Furnace Pipe', 'The Long Shelf', 'Lost & Found'],
-};
-const ENTRANCE = { 1: 'The Shop Floor, After Hours', 2: 'Up the Creaking Stairs', 3: 'Past the STAFF ONLY Sign' };
-const DOOR_HINTS = {
-  fight: ['Something scratches at the other side.', 'Torn wrappers on the floor. Fresh ones.', 'A shelf rattles. Then stops.', 'Little footsteps. Lots of them.'],
-  elite: ['Heavy breathing. Something big.', 'Claw marks on the frame — high up.', 'The door is dented outward.'],
-  shop: ['Warm light and a little bell.', 'Someone hums behind a counter.', 'It smells like new card stock.'],
-  rest: ['A kettle, a couch, quiet music.', 'Soft lamp light. It feels safe in there.'],
-  grader: ['A loupe glints through the keyhole.', 'Cold white light. Someone is inspecting.'],
-  event: ['The door is ajar. You can\'t see a thing.', 'Odd noises. Could be anything.', 'A note on the door: DO NOT OPEN.'],
-  treasure: ['Something glitters under the door.', 'A padlock hangs here — already broken.'],
-  boss: ['The big double doors. Something waits.'],
-};
-const pickBy = (arr, key) => arr[hashStr(String(key)) % arr.length];
-const roomName = () => run.pos == null ? ENTRANCE[run.act] : pickBy(ROOM_NAMES[run.act], run.seed + ':' + run.pos);
-
-function mapScreen(fresh) { return roomScreen(fresh); }
-
-const PROPS = {
-  1: ['cardboard-box', 'shopping-bag', 'ticket', 'price-tag', 'rat', 'desk-lamp', 'film-strip', 'card-random'],
-  2: ['holy-grail', 'laurel-crown', 'photo-camera', 'pocket-watch', 'padlock', 'desk-lamp', 'paint-brush', 'open-book'],
-  3: ['scroll-unfurled', 'book-cover', 'stamper', 'candle-flame', 'hanging-spider', 'sands-of-time', 'padlock', 'cardboard-box'],
-};
-const PROP_SPOTS = ['sl-hi', 'sr-hi'];
-function roomProps(key) {
-  const out = []; let hsh = hashStr(String(key));
-  const spots = PROP_SPOTS.slice(), pool = PROPS[run.act].slice();
-  for (let i = 0; i < 2; i++) {
-    const sp = spots.splice(hsh % spots.length, 1)[0]; hsh = (hsh * 31 + 7) >>> 0;
-    const pr = pool.splice(hsh % pool.length, 1)[0]; hsh = (hsh * 17 + 3) >>> 0;
-    out.push(`<span class="prop ${sp}">${icon(pr)}</span>`);
-  }
-  return out.join('');
-}
-function nightModal(first) {
-  const N = X.NIGHTS[run.night.id];
-  const m = modal([h('div', { class: 'night-head', style: { '--k': N.color }, html: `${icon(N.icon)}<div><div class="sub">${first ? 'TONIGHT' : 'TONIGHT\'S STORY'}</div><div class="h2">${N.name}</div></div>` }),
-    h('p', { class: 'sub', style: { 'font-size': '15px', color: '#e9e1ff' } }, N.intro),
-    h('div', { class: 'night-goal', style: { '--k': N.color }, html: `${icon(N.tokenIcon)}<div><b>${N.goal}</b> — ${run.night.done ? '<span style="color:#6dffb0">done!</span>' : `${run.night.got}/${N.need}`}<br><span>${N.reward}</span></div>` }),
-    h('p', { class: 'sub', style: { 'font-size': '13px' } }, 'Poke around every room: bins, cases, machines, sleeping things. What you find in one room can open something in another.'),
-    h('button', { class: 'btn gold', style: { width: '100%' }, onclick: () => m.close() }, first ? 'Into the dark' : 'OK')]);
-}
-
-function roomScreen(fresh) {
-  music('explore' + run.act);
-  if (!run.night) X.startNight(run);
-  const scr = h('div', { class: 'screen room-screen' });
-  const doors = R.reachable(run).map(id => R.nodeById(run, id)).sort((a, b) => a.x - b.x);
-  const spots = X.roomSpots(run).spots; save();
-  const room = h('div', { class: `room act-${run.act} night-${run.night.id}` });
-  const scene = h('div', { class: 'rm-scene' });
-  scene.innerHTML = '<div class="rm-ceil"></div><div class="rm-side l"></div><div class="rm-side r"></div><div class="rm-floor"></div><span class="lamp"></span>' + roomProps(run.seed + ':' + run.pos);
-  const wall = h('div', { class: 'rm-wall' });
-  scene.append(wall);
-  room.append(scene, h('div', { class: 'rm-dark' }));
-  let chosen = null, said = null; // chosen = {door} | {spot}
-  const info = h('div', { class: 'door-info' });
-  const showInfo = () => {
-    info.innerHTML = '';
-    if (!chosen) {
-      const left = spots.filter(sp => !sp.used).length;
-      info.append(h('div', { class: 'di-hint', html: `${left ? `<b>${left} thing${left > 1 ? 's' : ''}</b> to poke at. ` : ''}${doors.length > 1 ? `${doors.length} doors` : 'One door'} onward — <b>tap</b> to look closer.` }));
-      return;
-    }
-    if (chosen.spot) {
-      const sp = chosen.spot, D = X.SPOTS[sp.kind];
-      info.append(h('div', { class: 'di-type', style: { color: D.color }, html: `${icon(D.icon)}<b>${D.name}</b>${D.goal ? '<span class="goaltag">TONIGHT</span>' : ''}` }));
-      info.append(h('div', { class: 'di-hint' }, said || (sp.used ? 'Nothing more here.' : D.text)));
-      if (!sp.used) {
-        const row = h('div', { class: 'di-acts' });
-        for (const a of D.actions) {
-          const c = X.canDo(run, sp, a);
-          row.append(h('button', { class: 'btn small ' + (c.ok ? (a.risk ? 'risk' : 'gold') : 'ghost'), disabled: !c.ok, onclick: () => poke(sp, a.id) },
-            h('span', {}, a.label), a.risk ? h('em', {}, 'risky') : c.ok ? '' : h('em', {}, c.why)));
-        }
-        info.append(row);
-      }
-      return;
-    }
-    const nd = chosen.door, N = NODE[nd.type], boss = nd.type === 'boss' ? ENEMIES[R.pickBossId(run)] : null;
-    info.append(h('div', { class: 'di-type', style: { color: N.color }, html: `${icon(boss ? boss.icon : N.icon)}<b>${boss ? boss.name : N.label}</b>` + (nd.type === 'elite' && nd.loot && SETS[nd.loot] ? `<span class="loottag" style="--k:${SETS[nd.loot].color}">${icon(SETS[nd.loot].glyph)}${SETS[nd.loot].name} loot</span>` : '') }),
-      h('div', { class: 'di-hint' }, pickBy(DOOR_HINTS[nd.type], run.seed + ':' + nd.id)),
-      h('button', { class: 'btn gold di-go', onclick: () => walkThrough(nd) }, nd.type === 'boss' ? 'Face it' : 'Go through'));
-  };
-  const select = (el, c) => { chosen = c; said = null; room.querySelectorAll('.sel').forEach(x => x.classList.remove('sel')); el.classList.add('sel'); showInfo(); };
-  const els = doors.map(nd => {
-    const N = NODE[nd.type], boss = nd.type === 'boss';
-    const d = h('button', { class: `door t-${nd.type}${boss ? ' boss' : ''}`, style: { '--nc': N.color } });
-    d.innerHTML = `<span class="d-in">${icon(boss ? ENEMIES[R.pickBossId(run)].icon : N.icon)}</span>
-      <span class="d-leaf">${boss ? '<span class="d-leaf2"></span>' : ''}<span class="d-plaque">${icon(boss ? 'crowned-skull' : N.icon)}</span><span class="d-knob"></span></span>
-      <span class="d-spill"></span>`;
-    d.addEventListener('click', () => {
-      if (chosen && chosen.door === nd) return walkThrough(nd);
-      sfx.listen(nd.type); select(d, { door: nd });
-    });
-    return d;
-  });
-  wall.append(...els);
-  // the things lying around
-  const SLOTS = ['fl', 'fr', 'sl', 'sr'];
-  const spotEls = spots.map((sp, k) => {
-    const D = X.SPOTS[sp.kind];
-    const el = h('button', { class: `spot ${SLOTS[k % 4]}${sp.used ? ' used' : ''}${D.goal ? ' goal' : ''}`, style: { '--k': D.color } });
-    el.innerHTML = `<span class="sp-ico">${icon(D.icon)}</span><span class="sp-lbl">${D.name}</span>`;
-    el.addEventListener('click', () => { sfx.tap(); select(el, { spot: sp }); });
-    scene.append(el);
-    return el;
-  });
-  function poke(sp, actId) {
-    const res = X.doSpot(run, sp, actId);
-    said = res.say;
-    const el = spotEls[spots.indexOf(sp)], p = centerOf(el);
-    for (const o of res.out) {
-      if (o.coins) { floatText(p.x, p.y - 30, (o.coins > 0 ? '+' : '') + o.coins + ' coins', '#ffd166'); o.coins > 0 ? sfx.coin() : sfx.back(); }
-      if (o.hp) { floatText(p.x, p.y - 10, (o.hp > 0 ? '+' : '') + o.hp + ' HP', o.hp > 0 ? '#6dffb0' : '#ff5d73', o.hp < 0); if (o.hp < 0) { sfx.hurt(); shake(); } else sfx.heal(); }
-      if (o.item) { const I = X.ITEMS[o.item]; toast(`${icon(I.icon)} <b>${I.name}</b> — ${I.text}`, 2600); sfx.buy(); }
-      if (o.nothing) sfx.back();
-    }
-    if (res.out.some(o => o.token)) { burst(p.x, p.y, { count: 30, colors: [X.NIGHTS[run.night.id].color, '#fff'], kind: 'confetti', speed: 5 }); sfx.reveal('U'); }
-    el.classList.toggle('used', sp.used);
-    save(); refreshTop(); showInfo();
-    // things that need their own screen come last, one after the other
-    const queue = [];
-    if (res.out.some(o => o.goalDone)) queue.push(done => { const N = X.NIGHTS[run.night.id]; banner('TONIGHT: DONE', N.reward, N.color); sfx.reveal('M'); setTimeout(done, 1700); });
-    for (const o of res.out) {
-      if (o.tactic) queue.push(done => { const id = R.randomTactic(run); const T = TACTICS[id]; if (R.addTactic(run, id)) toast(`${icon('ticket')} <b>Tactic: ${T.name}</b> — ${T.text}`, 3000); else { run.coins += 4; toast(`Tactic ${T.name}, but you're full — sold for 4 coins.`); } save(); refreshTop(); done(); });
-      if (o.xp) queue.push(done => polishPick(o.xp, done));
-      if (o.relic) queue.push(done => relicPick(done));
-    }
-    const pack = res.out.find(o => o.pack);
-    const next = () => { const f = queue.shift(); if (f) f(next); else if (pack) setTimeout(() => openPackFlow(R.openPack(run, { type: pack.pack }), 'map'), 500); };
-    setTimeout(next, 450);
-  }
-  function walkThrough(nd) {
-    if (room.classList.contains('going')) return;
-    const d = els[doors.indexOf(nd)];
-    const rr = room.getBoundingClientRect(), dr = d.getBoundingClientRect();
-    room.style.setProperty('--ox', ((dr.left + dr.width / 2 - rr.left) / rr.width * 100).toFixed(1) + '%');
-    room.style.setProperty('--oy', ((dr.top + dr.height * 0.55 - rr.top) / rr.height * 100).toFixed(1) + '%');
-    d.classList.add('open'); room.classList.add('going'); sfx.creak();
-    setTimeout(() => enter(nd.id), 900);
-  }
-  const N = X.NIGHTS[run.night.id];
-  const nightChip = h('button', { class: 'night-chip' + (run.night.done ? ' done' : ''), style: { '--k': N.color }, onclick: () => { sfx.tap(); nightModal(false); } });
-  const pockets = h('div', { class: 'pockets' });
-  const head = h('div', { class: 'actbanner' },
-    h('div', { class: 'sub', style: { 'font-weight': 900, 'letter-spacing': '.2em' } }, `ACT ${run.act} · ${ACT_NAME[run.act].toUpperCase()}${run.daily ? ' · DAILY' : ''}${run.heat ? ' · HEAT ' + run.heat : ''}`),
-    h('div', { class: 'h2 room-name' }, roomName()),
-    h('div', { class: 'room-sub' }, nightChip, pockets));
-  const planBtn = h('button', { class: 'iconbtn plan', title: 'Floor plan', onclick: () => { sfx.tap(); floorPlan(); }, html: icon('treasure-map') });
-  let top = topbarRun([planBtn]);
-  function refreshTop() {
-    const t2 = topbarRun([planBtn]); top.replaceWith(t2); top = t2;
-    nightChip.className = 'night-chip' + (run.night.done ? ' done' : '');
-    nightChip.innerHTML = `${icon(N.icon)}<span>${N.name}</span><b>${run.night.done ? '✓' : `${run.night.got}/${N.need}`}</b>`;
-    pockets.innerHTML = (run.items || []).length ? run.items.map(id => `<i title="${X.ITEMS[id].name}">${icon(X.ITEMS[id].icon)}</i>`).join('') : '<span>empty pockets</span>';
-  }
-  function polishPick(xp, done) {
-    const cards = run.row.filter(c => c && canGrow(c));
-    if (!cards.length) { run.coins += 6; toast('No card in your row can grow — you sell the kit for 6 coins.'); save(); refreshTop(); return done(); }
-    const grid = h('div', { class: 'pick-grid' });
-    const m = modal([h('div', { class: 'h2' }, 'Polish which card?'), h('div', { class: 'sub' }, `It grows +${xp}.`), grid]);
-    cards.forEach(c => { const el = cardEl(c, { mini: true }); el.addEventListener('click', () => {
-      const before = growStage(c); c.xp = (c.xp || 0) + xp; const after = growStage(c);
-      m.close(); save(); sfx.buff();
-      if (after > before) { banner(after === 2 ? 'FULL ART' : 'ALT ART', cardName(c) + ' grew!', after === 2 ? '#ff4fd8' : '#ffd166'); sfx.reveal(after === 2 ? 'M' : 'R'); }
-      arr.render(); done();
-    }); grid.append(el); });
-  }
-  function relicPick(done) {
-    const choices = R.relicChoices(run, 2);
-    if (!choices.length) { run.coins += 20; save(); refreshTop(); return done(); }
-    const m = modal([h('div', { class: 'h2' }, 'Pick one'), h('div', { class: 'sub' }, 'Only one fits in your bag.'),
-      ...choices.map(id => h('button', { class: 'relic-choice', onclick: () => { R.takeRelic(run, id); m.close(); sfx.reveal('R'); save(); refreshTop(); arr.render(); done(); },
-        html: `${icon(RELICS[id].icon)}<div><b>${RELICS[id].name}</b><span>${RELICS[id].text}</span></div>` }))]);
-  }
-  const arr = arranger(run, { onChange: save, merge: true });
-  showInfo(); refreshTop();
-  scr.append(top, head, room, info, arr.detail, arr.el);
-  mount(scr);
-  const stole = run.thiefStruck; if (stole) { run.thiefStruck = 0; save(); setTimeout(() => { toast(`${icon('assassin-pocket')} <b>The thief!</b> A hand in your pocket — ${stole} coins gone.`, 3000); sfx.back(); }, 700); }
   if (fresh && run.floor === 0 && run.act === 1 && !meta.seen) {
     meta.seen = true; saveMeta();
-    setTimeout(() => {
-      const m = modal([h('div', { class: 'h2' }, 'How HOLO works'),
-        h('div', { class: 'sub', style: { 'font-size': '14px', 'margin-top': '8px' }, html: `
-          <p><b style="color:#fff">Your row of 6 cards fires left → right</b> every round of a fight. Order matters: buffs boost the card after them, Mirror copies the card to its left.</p>
-          <p><b style="color:#fff">Cards in your row grow</b> as they fire — into Alt Art, then Full Art. Bench cards don't grow.</p>
-          <p><b style="color:#fff">Win fights → rip packs.</b> Keep the pulls you like, merge duplicates for ★, and sell the rest for coins.</p>
-          <p><b style="color:#fff">Explore the closed shop</b> room by room. Poke at what's lying around, pick a door, beat three bosses.</p>` }),
-        h('button', { class: 'btn gold', style: { width: '100%', 'margin-top': '6px' }, onclick: () => { m.close(); nightModal(true); } }, "Let's rip")]);
-    }, 400);
-  } else if (fresh && run.floor === 0 && run.act === 1 && !run.night.seen) { run.night.seen = true; save(); setTimeout(() => nightModal(true), 400); }
-  if (run.floor === 0 && run.act === 1) { run.night.seen = true; save(); }
+    setTimeout(() => modal([h('div', { class: 'h2' }, 'How HOLO works'),
+      h('div', { class: 'sub', style: { 'font-size': '14px', 'margin-top': '8px' }, html: `
+        <p><b style="color:#fff">Your row of 6 cards fires left → right</b> every round of a fight. Order matters: buffs boost the card after them, Mirror copies the card to its left.</p>
+        <p><b style="color:#fff">Win fights → rip packs.</b> Keep the pulls you like, merge duplicates for ★, and sell the rest for coins.</p>
+        <p><b style="color:#fff">Pick your path</b> up the shelf. Beat three bosses to win. If your HP hits 0, the run is over.</p>
+        <p>Tap the pulsing node below to start.</p>` }),
+      h('button', { class: 'btn gold', style: { width: '100%', 'margin-top': '6px' }, onclick: e => e.target.closest('.modal-bg').remove() }, "Let's rip")]), 400);
+  }
 }
 
 function enter(id) {
   const nd = R.enterNode(run, id);
-  const stole = X.thiefOnEnter(run); if (stole) run.thiefStruck = stole;
   if (nd.type === 'fight' || nd.type === 'elite' || nd.type === 'boss') { R.startBattle(run, nd.type); save(); return battleFlow(); }
   if (nd.type === 'shop') run.pending = { type: 'node', node: 'shop', shop: R.makeShop(run), line: shopLine() };
   if (nd.type === 'rest') run.pending = { type: 'node', node: 'rest' };

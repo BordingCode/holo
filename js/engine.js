@@ -6,13 +6,13 @@
 // reversed) → Burn/Poison tick on enemies → enemies act (aims land) →
 // your Burn/Poison tick → Block fades → new intents + aims.
 // ---------------------------------------------------------------------------
-import { CARDS, ENEMIES, EDITIONS, STAR_MULT, MISPRINTS, RARITY_RANK, ED_RANK, SET_BONUS, TACTICS, ENEMY_EDITIONS, GROWTH, GROW_MULT, STAGE_NAMES } from './data.js?v=19';
+import { CARDS, ENEMIES, EDITIONS, STAR_MULT, MISPRINTS, RARITY_RANK, ED_RANK, SET_BONUS, TACTICS, ENEMY_EDITIONS } from './data.js?v=20';
 
 export const ROW_SIZE = 6;
 
 export function cardValues(inst) {
   const def = CARDS[inst.id];
-  const mult = STAR_MULT[inst.star || 1] * EDITIONS[inst.ed || 'normal'].mult * GROW_MULT[growStage(inst)];
+  const mult = STAR_MULT[inst.star || 1] * EDITIONS[inst.ed || 'normal'].mult;
   const v = {};
   for (const k in def.v) {
     const base = def.v[k];
@@ -22,33 +22,11 @@ export function cardValues(inst) {
   return { v, mult };
 }
 
-// ---- growth: Alt Art → Full Art ------------------------------------------------
-export { GROWTH, GROW_MULT }; // re-exported so tools tune the same copy the engine uses
-export const canGrow = inst => !!inst && !CARDS[inst.id].passive;
-export const growStage = inst => !canGrow(inst) ? 0 : (inst.xp || 0) >= GROWTH.full ? 2 : (inst.xp || 0) >= GROWTH.alt ? 1 : 0;
-export const cardName = inst => { const def = CARDS[inst.id]; return growStage(inst) >= 2 && def.bloom && def.bloom.name ? def.bloom.name : def.name; };
-// progress toward the next stage, 0..1 (1 when Full Art)
-export function growProgress(inst) {
-  const xp = inst.xp || 0, st = growStage(inst);
-  if (st >= 2) return { stage: 2, frac: 1, xp, need: GROWTH.full };
-  const lo = st ? GROWTH.alt : 0, hi = st ? GROWTH.full : GROWTH.alt;
-  return { stage: st, frac: (xp - lo) / (hi - lo), xp, need: hi };
-}
-function addXp(B, inst, n, slot) {
-  if (!canGrow(inst) || !B.row.includes(inst)) return; // only cards in the row grow
-  const before = growStage(inst);
-  inst.xp = (inst.xp || 0) + n;
-  const after = growStage(inst);
-  if (after > before) push(B, { t: 'bloom', uid: inst.uid, slot: slot != null ? slot : B.row.indexOf(inst), stage: after, name: cardName(inst), stageName: STAGE_NAMES[after] });
-}
-
 export function cardText(inst) {
   const def = CARDS[inst.id];
   const { v } = cardValues(inst);
   let t = def.text.replace(/\{(\w+)\}/g, (_, k) => k === 'grow' ? (inst.grow ? ` (+${inst.grow})` : '') : v[k]);
   if (inst.ed === 'misprint' && inst.mp != null) t += ' ' + MISPRINTS[inst.mp].text + '.';
-  const st = growStage(inst), b = def.bloom;
-  if (b && st >= b.from) t += ' ' + b.text(b.n[st]);
   return t;
 }
 
@@ -184,7 +162,6 @@ function killEnemy(B, u, src) {
   u.hp = 0; u.dead = true; B.stats.kills++;
   push(B, { t: 'die', side: 'e', i: idxOf(B, u) });
   const def = ENEMIES[u.id];
-  if (B.curInst) addXp(B, B.curInst, GROWTH.kill);
   if (src && src.trophy && B.curInst) { B.curInst.grow = (B.curInst.grow || 0) + 2; push(B, { t: 'grow', uid: B.curInst.uid, n: 2, total: B.curInst.grow }); }
   if (u.ed === 'gilded') { B.coins += 12; push(B, { t: 'coins', n: 12, total: B.coins }); }
   if (B.sets.gilded >= 1) { B.coins += 2; push(B, { t: 'coins', n: 2, total: B.coins }); }
@@ -223,9 +200,6 @@ function makeCtx(B, inst, slot, depth, bonus) {
         let add = bonus + B.roundBonus + P.str + B.voidCharge;
         if (B.sets.venom >= 2 && t.poison > 0) add += 4;
         if (B.sets.gilded >= 2) add += Math.min(6, Math.floor(B.coins / 10));
-        const gst = growStage(inst);
-        if (gst >= 1 && B.sets.bloom >= 2) add += 3;
-        if (gst >= 1 && B.flags.worldTree) add += 2;
         if (B.flags.clover && inst.ed && inst.ed !== 'normal') add += 2;
         let d = n + add;
         if (P.weak > 0) d *= 0.75;
@@ -276,16 +250,6 @@ function makeCtx(B, inst, slot, depth, bonus) {
       if (depth >= 3 || Rr < 0) { push(B, { t: 'fizzle', slot, text: 'Nothing to wind' }); return; }
       fireOnce(B, B.row[Rr], Rr, depth + 1, bonus, slot);
     },
-    // ---- growth helpers (Bloom set) ----
-    growNear(dx, n) { const s = slot + dx; if (s >= 0 && s < B.row.length && working(B, s)) addXp(B, B.row[s], n, s); },
-    stages() { let n = 0; B.row.forEach((c, s) => { if (working(B, s)) n += growStage(c); }); return n; },
-    grownCount() { let n = 0; B.row.forEach((c, s) => { if (working(B, s) && growStage(c) >= 1) n++; }); return n; },
-    growLeast(n) { let best = -1; B.row.forEach((c, s) => { if (working(B, s) && canGrow(c) && growStage(c) < 2 && (best < 0 || (c.xp || 0) < (B.row[best].xp || 0))) best = s; }); if (best >= 0) addXp(B, B.row[best], n, best); },
-    fireMostGrown() {
-      let best = -1; B.row.forEach((c, s) => { if (s !== slot && working(B, s) && !CARDS[c.id].passive && !CARDS[c.id].copies && (best < 0 || (c.xp || 0) > (B.row[best].xp || 0))) best = s; });
-      if (depth >= 3 || best < 0) { push(B, { t: 'fizzle', slot, text: 'Nothing to reprint' }); return; }
-      fireOnce(B, B.row[best], best, depth + 1, bonus, slot);
-    },
     isLast() { const o = order(B), i = o.indexOf(slot); return !o.slice(i + 1).some(s => working(B, s) && !CARDS[B.row[s].id].passive); },
     overclockNext(k) { const o = order(B), i = o.indexOf(slot); let n = 0; for (const s of o.slice(i + 1)) { if (n >= k) break; if (working(B, s) && !CARDS[B.row[s].id].passive) { B.overclock.add(s); n++; push(B, { t: 'buff', slot, n: 0, overclock: s }); } } },
     overclockRight() { B.overclock.add(slot + 1); push(B, { t: 'buff', slot, n: 0, overclock: slot + 1 }); },
@@ -315,10 +279,6 @@ function fireOnce(B, inst, slot, depth, bonus, via) {
     else if (m.k === 'poi') x.poison(m.n); else if (m.k === 'h') x.heal(m.n); else if (m.k === 'c') x.coins(m.n);
   }
   if (inst.ed === 'gilded') x.coins(1);
-  const st = growStage(inst);
-  if (def.bloom && st >= def.bloom.from && !B.over) def.bloom.fire(x, def.bloom.n[st]);
-  const r = (B.xpRound[inst.uid] || 0);
-  if (r < GROWTH.perRound) { B.xpRound[inst.uid] = r + 1; addXp(B, inst, (def.growRate || 1) + (B.sets.bloom >= 1 ? 1 : 0), slot); }
   B.curInst = prevInst;
 }
 
@@ -334,7 +294,6 @@ function fireSlot(B, slot, extraTimes = 0) {
   let times = 1 + extraTimes + (inst.ed === 'holo' ? 1 : 0);
   if (def.set === 'void' && B.sets.void >= 3) times++;
   if (B.overclock.has(slot)) { times++; B.overclock.delete(slot); }
-  if (growStage(inst) >= 2 && (def.fullTwice || B.flags.worldTree || B.sets.bloom >= 3)) times++;
   const wasSpot = B.spotlight;
   for (let k = 0; k < times && !B.over; k++) {
     fireOnce(B, inst, slot, 0, bonus);
@@ -501,9 +460,8 @@ export function playRound(B) {
   B.round++;
   recomputeFlags(B);
   push(B, { t: 'round', round: B.round });
-  if (B.round === 1 && B.flags.hothouse) B.row.forEach((c, s) => { if (working(B, s)) addXp(B, c, 3, s); });
   B.firedThisRound = 0; B.roundBonus = 0; B.barbed = 0; B.pendingNext = []; B.chain = false; B.roundDmg = 0;
-  B.silenced = new Set(); B.overclock = new Set(); B.maxHitThis = 0; B.xpRound = {};
+  B.silenced = new Set(); B.overclock = new Set(); B.maxHitThis = 0;
   B.jamNow = B.jammed; B.jamNext = new Set();
   const pre = B.pre; B.pre = {};
   B.roundMult = pre.mult || 1; B.spotlight = !!pre.spotlight; B.spotlightUsed = false;
