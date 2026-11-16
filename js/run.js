@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=20';
-import { makeRng, hashStr } from './rng.js?v=20';
-import { createBattle, ROW_SIZE } from './engine.js?v=20';
+import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=21';
+import { makeRng, hashStr } from './rng.js?v=21';
+import { createBattle, ROW_SIZE } from './engine.js?v=21';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;
@@ -135,7 +135,11 @@ export function genMap(run, act) {
   const tr = rng.pick(rows[3].filter(n => n.type !== 'shop') .length ? rows[3].filter(n => n.type !== 'shop') : rows[3]);
   tr.type = 'treasure';
   const lootSets = run.sets.filter(s => s !== 'base' && s !== 'void');
-  for (const n of rows.flat()) if (n.type === 'elite') n.loot = rng.pick(lootSets);
+  // every elite shows its prize on the map: a set's Set Box, a guaranteed Holo pull, a relic, or (Act 2+) a Collector's Tin
+  for (const n of rows.flat()) if (n.type === 'elite') {
+    n.loot = rng.pick(lootSets);
+    n.prize = rng.weighted(act >= 2 ? { set: 40, holo: 25, relic: 22, tin: 13 } : { set: 50, holo: 28, relic: 22 });
+  }
   // edges: each node links to its nearest 1–2 nodes in the next row; no orphans
   for (let r = 0; r < ROWS_PER_ACT - 1; r++) {
     const nxt = rows[r + 1];
@@ -165,7 +169,7 @@ export function reachable(run) {
 export function pickEncounter(run, kind) {
   const rng = rngOf(run);
   const E = ENCOUNTERS[run.act];
-  if (kind === 'boss') return E.boss;
+  if (kind === 'boss') return [pickBossId(run)];
   if (kind === 'elite') return rng.pick(E.elite);
   const fightsThisAct = run.actFights || 0;
   return rng.pick(fightsThisAct < 2 ? E.easy : E.normal);
@@ -212,7 +216,12 @@ export function finishBattle(run, B) {
   if (kind === 'elite') {
     run.stats.elites++;
     const nd = nodeById(run, run.pos);
-    packs.push({ type: 'set', set: (nd && nd.loot) || rng.pick(run.sets.filter(s => s !== 'base' && s !== 'void')) });
+    const prize = (nd && nd.prize) || 'set';
+    const setPick = (nd && nd.loot) || rng.pick(run.sets.filter(s => s !== 'base' && s !== 'void'));
+    if (prize === 'holo') packs.push({ type: 'booster', holo: true });
+    else if (prize === 'tin') packs.push({ type: 'collector' });
+    else if (prize === 'relic') { relics = relicChoices(run, 2); if (!relics.length) { relics = null; packs.push({ type: 'set', set: setPick }); } }
+    else packs.push({ type: 'set', set: setPick });
     tactic = randomTactic(run, rng.chance(0.4) ? 'R' : 'U');
     if (!addTactic(run, tactic)) { run.coins += 6; tactic = null; }
   }
@@ -255,7 +264,7 @@ export function openPack(run, spec) {
     const def = rng.pick(options);
     const eo = {};
     for (const k2 in ED_ODDS) eo[k2] = k2 === 'normal' ? ED_ODDS[k2] : ED_ODDS[k2] * P.ed * clover;
-    const ed = rng.weighted(eo);
+    const ed = spec.holo && k === size - 1 ? 'holo' : rng.weighted(eo); // elite prize: a guaranteed Holo pull
     cards.push(newCard(run, def.id, ed, 1, rng));
   }
   // Mythic meter: every non-Mythic pull charges it; a Mythic (natural or forced) empties it
@@ -437,4 +446,9 @@ export function completeNode(run) {
 
 export function restHeal(run) { return Math.round(run.maxHp * (run.heat >= 8 ? 0.17 : 0.35)); }
 
-export const pickBossId = run => ENCOUNTERS[run.act].boss[0];
+// each act's boss is rolled once per run (seeded) and shown on the map from the start
+export const pickBossId = run => {
+  run.bossIds ||= {};
+  if (!run.bossIds[run.act]) { const list = ENCOUNTERS[run.act].boss; run.bossIds[run.act] = list[hashStr(run.seed + ':boss:' + run.act) % list.length]; }
+  return run.bossIds[run.act];
+};

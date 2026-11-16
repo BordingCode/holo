@@ -169,6 +169,9 @@ export const ENEMIES = {
   shredder:    { name: 'The Shredder',icon: 'box-cutter', hp: 130, color: '#ff5d5d', boss: true, title: 'Act I Boss',
     rule: 'Every other round it SHREDS your leftmost working card for the rest of the fight. Put something you can spare on the left.',
     moves: [{ atk: 11 }, { special: 'shred', atk: 6 }, { block: 10, atk: 7 }, { special: 'shred', atk: 6 }] },
+  rubber_ball: { name: 'Rubber Band Ball', icon: 'yarn', hp: 105, color: '#ff9f43', boss: true, title: 'Act I Boss', bounce: true,
+    rule: 'BOUNCE: the first card that hits it each round does no damage — half of it bounces back at YOU. Lead with a weak card.',
+    moves: [{ atk: 9 }, { atk: 4, times: 3 }, { block: 12, atk: 5 }, { str: 2, atk: 8 }] },
 
   // Act 2 — the display case
   sleeve_slime:{ name: 'Sleeve Slime',icon: 'slime', hp: 26, color: '#7fe0c2', split: 'slimelet', moves: [{ atk: 7 }, { poison: 4 }, { atk: 5, block: 5 }] },
@@ -184,6 +187,9 @@ export const ENEMIES = {
   collector:   { name: 'The Collector', icon: 'old-king', hp: 240, color: '#ffd166', boss: true, title: 'Act II Boss',
     rule: 'Every 3rd move it STEALS your rarest working card into its binder. Beat it to get them back.',
     moves: [{ atk: 12 }, { atk: 4, times: 4 }, { special: 'steal', block: 12 }, { str: 2, atk: 9 }, { atk: 18 }, { special: 'steal', block: 12 }] },
+  laminator:   { name: 'The Laminator', icon: 'steamroller', hp: 205, color: '#9fe7ff', boss: true, title: 'Act II Boss', pierce: true,
+    rule: 'LAMINATE: its attacks go straight through your Block. Thorns, healing and speed win this one.',
+    moves: [{ atk: 10 }, { atk: 3, times: 4 }, { block: 15, atk: 6 }, { str: 2, atk: 8 }, { atk: 15 }] },
 
   // Act 3 — the back room
   holo_hound:  { name: 'Holo Hound',  icon: 'hound', hp: 44, color: '#7ff0ff', moves: [{ atk: 6, times: 2 }, { str: 2, block: 8 }, { atk: 14, aim: 'strike', aimAt: 'strong' }] },
@@ -194,6 +200,9 @@ export const ENEMIES = {
   chase_dragon:{ name: 'Chase Dragon',icon: 'dragon-head', hp: 150, color: '#ff6b9d', elite: true, moves: [{ burn: 6, atk: 8 }, { atk: 26, aim: 'strike', aimAt: 'strong' }, { block: 20, str: 3 }] },
   grading_golem:{ name: 'Grading Golem', icon: 'rock-golem', hp: 170, color: '#c2b280', elite: true,
     rule: 'Grows stronger every round.', moves: [{ str: 3, atk: 10 }, { str: 3, block: 15 }, { str: 3, atk: 6, times: 2 }] },
+  appraiser:   { name: 'The Appraiser', icon: 'steampunk-goggles', hp: 430, color: '#7ff0c8', boss: true, title: 'Final Boss', appraise: true,
+    rule: 'APPRAISE: plain cards deal HALF damage to it. Only Foil, Holo, Gilded, Cracked and Misprint cards hit full.',
+    moves: [{ atk: 15 }, { vuln: 2, atk: 8 }, { block: 22, str: 2 }, { atk: 7, times: 3 }, { atk: 11, aim: 'strike', aimAt: 'strong' }, { poison: 5, atk: 9 }] },
   proprietor:  { name: 'The Proprietor', icon: 'spectre', hp: 460, color: '#ff4fd8', boss: true, title: 'Final Boss',
     rule: 'At half HP: CLOSING TIME. The lights go out and your row fires RIGHT-TO-LEFT.',
     moves: [{ atk: 16 }, { burn: 5, atk: 8 }, { block: 20, str: 2 }, { atk: 12, aim: 'blind', aimAt: 'strong' }, { atk: 6, times: 4 }, { poison: 6, atk: 10, aim: 'strike' }] },
@@ -204,19 +213,19 @@ export const ENCOUNTERS = {
     easy: [['dust_bunny'], ['paper_plane', 'paper_plane'], ['silverfish']],
     normal: [['dust_bunny', 'paper_plane'], ['paper_clip', 'silverfish'], ['paper_plane', 'paper_plane', 'paper_plane'], ['dust_bunny', 'dust_bunny'], ['paper_clip', 'paper_plane']],
     elite: [['staple_beast'], ['price_gun']],
-    boss: ['shredder'],
+    boss: ['shredder', 'rubber_ball'],
   },
   2: {
     easy: [['sleeve_slime'], ['tape_golem'], ['dust_moth', 'dust_moth']],
     normal: [['dust_moth', 'dust_moth', 'dust_moth'], ['bootleg', 'dust_moth'], ['shrink_wraith', 'sleeve_slime'], ['tape_golem', 'dust_moth'], ['bootleg', 'shrink_wraith']],
     elite: [['mimic'], ['ink_kraken']],
-    boss: ['collector'],
+    boss: ['collector', 'laminator'],
   },
   3: {
     easy: [['holo_hound'], ['foil_serpent']],
     normal: [['raven', 'raven'], ['web_spinner', 'raven'], ['holo_hound', 'web_spinner'], ['foil_serpent', 'raven'], ['holo_hound', 'foil_serpent']],
     elite: [['chase_dragon'], ['grading_golem']],
-    boss: ['proprietor'],
+    boss: ['proprietor', 'appraiser'],
   },
 };
 
@@ -228,7 +237,7 @@ export const HEROES = {
     start: ['jab', 'jab', 'guard', 'whetstone'], perk: 'STEADY: start every fight with 4 Block.', perkId: 'steady' },
   wick: { name: 'Wick', title: 'the Candle Witch', icon: 'candle-flame', color: '#ff9a4d', hp: 55, coins: 12,
     start: ['ember_fang', 'kindling', 'jab', 'guard'], perk: 'KINDLED: all Burn you apply is +1.', perkId: 'kindled',
-    unlock: { text: 'Defeat The Shredder', key: 'beatShredder' } },
+    unlock: { text: 'Defeat the Act I boss', key: 'beatShredder' } },
   glint: { name: 'Glint', title: 'the Fox Thief', icon: 'fox-head', color: '#ffd166', hp: 52, coins: 30,
     start: ['pickpocket', 'jab', 'guard', 'coin_toss'], perk: 'FENCE: packs cost 20% less, sold cards give +1 coin.', perkId: 'fence',
     unlock: { text: 'Pull 25 different cards', key: 'binder25' } },
@@ -335,8 +344,8 @@ export const ACHIEVEMENTS = [
   { id: 'holo3', name: 'Shiny Row', text: 'Have 3 Holo cards in your row at once.', back: 'ocean' },
   { id: 'gem10', name: 'Gem Mint', text: 'Get a 10 from the Grader.', back: 'mint' },
   { id: 'rich', name: 'Hoarder', text: 'Hold 150 coins at once.', back: 'gold' },
-  { id: 'shredder', name: 'Shelf Clearer', text: 'Defeat The Shredder.', back: null },
-  { id: 'collector', name: 'Not For Sale', text: 'Defeat The Collector.', back: null },
+  { id: 'shredder', name: 'Shelf Clearer', text: 'Defeat the Act I boss.', back: null },
+  { id: 'collector', name: 'Not For Sale', text: 'Defeat the Act II boss.', back: null },
   { id: 'win', name: 'Closing Time', text: 'Win a run.', back: null },
   { id: 'mythic5', name: 'Mythic Hunter', text: 'Pull 5 Mythic cards (all time).', back: null },
   { id: 'heat4', name: 'Feel the Heat', text: 'Win a run at Heat 4 or higher.', back: null },

@@ -6,7 +6,7 @@
 // reversed) → Burn/Poison tick on enemies → enemies act (aims land) →
 // your Burn/Poison tick → Block fades → new intents + aims.
 // ---------------------------------------------------------------------------
-import { CARDS, ENEMIES, EDITIONS, STAR_MULT, MISPRINTS, RARITY_RANK, ED_RANK, SET_BONUS, TACTICS, ENEMY_EDITIONS } from './data.js?v=20';
+import { CARDS, ENEMIES, EDITIONS, STAR_MULT, MISPRINTS, RARITY_RANK, ED_RANK, SET_BONUS, TACTICS, ENEMY_EDITIONS } from './data.js?v=21';
 
 export const ROW_SIZE = 6;
 
@@ -207,7 +207,13 @@ function makeCtx(B, inst, slot, depth, bonus) {
         d *= B.roundMult;
         if (B.flags.crescendo) d *= 1 + 0.35 * B.firedThisRound;
         if (B.spotlight) { d *= 3; B.spotlightUsed = true; }
+        const tdef = ENEMIES[t.id];
+        if (tdef.appraise && (!inst.ed || inst.ed === 'normal')) d *= 0.5; // The Appraiser: plain cards hit half
         d = Math.floor(d);
+        if (tdef.bounce && !B.bounced && d > 0) { // Rubber Band Ball: the first hit each round bounces back at you
+          const back = Math.ceil(d / 2); B.bounced = true; push(B, { t: 'proc', name: 'BOUNCE! ' + back + ' back at you' });
+          damage(B, P, back, 'atk'); if (B.over) return total; continue;
+        }
         B.voidCharge = 0;
         B.maxHitThis = Math.max(B.maxHitThis, d);
         B.stats.maxHit = Math.max(B.stats.maxHit, d);
@@ -396,7 +402,7 @@ function enemyAct(B, e) {
   if (atk && !missed) {
     const times = (m.times || 1) * (e.ed === 'holo' ? 2 : 1);
     for (let h = 0; h < times && !B.over && !e.dead; h++) {
-      damage(B, P, enemyHitDmg(B, e, atk), 'atk');
+      damage(B, P, enemyHitDmg(B, e, atk), ENEMIES[e.id].pierce ? 'pierce' : 'atk'); // Laminator ignores Block
       if (P.thorns > 0 && !B.over) damage(B, e, P.thorns * (B.flags.tortoise ? 2 : 1), 'thorns');
     }
   }
@@ -460,7 +466,7 @@ export function playRound(B) {
   B.round++;
   recomputeFlags(B);
   push(B, { t: 'round', round: B.round });
-  B.firedThisRound = 0; B.roundBonus = 0; B.barbed = 0; B.pendingNext = []; B.chain = false; B.roundDmg = 0;
+  B.firedThisRound = 0; B.roundBonus = 0; B.barbed = 0; B.pendingNext = []; B.chain = false; B.roundDmg = 0; B.bounced = false;
   B.silenced = new Set(); B.overclock = new Set(); B.maxHitThis = 0;
   B.jamNow = B.jammed; B.jamNext = new Set();
   const pre = B.pre; B.pre = {};

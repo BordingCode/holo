@@ -137,5 +137,27 @@ function window_r(x) { return globalThis.__C[x.id].r; }
   { const B = battle([card('shadow_bargain'), card('jab'), card('jab')]); playRound(B); ok(dealt(B) === 16, 'shadow bargain: next 2 fire twice'); }
   { const B = battle([card('drawbridge')], ['tape_golem']); playRound(B); ok(dealt(B) >= 4, 'drawbridge deals half its block'); }
 }
+// ---- boss pool & elite prizes ----
+{
+  const { ENEMIES: EN } = await import('../js/data.js');
+  // Rubber Band Ball: the first hit each round bounces back at you; the rest land
+  { const B = battle([card('jab'), card('jab')], ['rubber_ball'], { hp: 50, maxHp: 50 }); playRound(B);
+    ok(dealt(B) === 4, 'rubber ball: first hit bounces, second lands (' + dealt(B) + ')');
+    ok(B.ev.some(e => e.t === 'dmg' && e.side === 'p' && e.amt + e.blocked === 2), 'rubber ball: half (2) bounces back at you'); }
+  // Laminator: attacks ignore Block
+  { const B = battle([card('guard')], ['laminator'], { hp: 50, maxHp: 50 }); playRound(B);
+    ok(B.ev.some(e => e.t === 'dmg' && e.side === 'p' && e.kind === 'pierce' && e.blocked === 0 && e.amt > 0), 'laminator pierces block'); }
+  // Appraiser: plain cards half, special editions full
+  { const B = battle([card('jab')], ['appraiser']); playRound(B); ok(dealt(B) === 2, 'appraiser halves a plain jab'); }
+  { const B = battle([card('jab', 'foil')], ['appraiser']); playRound(B); ok(dealt(B) === 6, 'appraiser: foil jab hits full'); }
+  // bosses rolled per run, seeded, stable; both options appear across seeds
+  const seen = { 1: new Set(), 2: new Set(), 3: new Set() };
+  for (let sd = 1; sd < 40; sd++) { const run = R.newRun({ hero: 'kip', seed: sd }); for (const a of [1, 2, 3]) { run.act = a; const id = R.pickBossId(run); ok(EN[id].boss && R.pickBossId(run) === id, 'boss stable'); seen[a].add(id); } }
+  ok(seen[1].size === 2 && seen[2].size === 2 && seen[3].size === 2, 'each act rolls between two bosses');
+  // elites carry a prize; a holo prize pull really contains a Holo card
+  { const run = R.newRun({ hero: 'kip', seed: 5 }); const el = run.map.rows.flat().filter(n => n.type === 'elite');
+    ok(el.length && el.every(n => ['set', 'holo', 'relic'].includes(n.prize)), 'act 1 elites have a prize (no tin)');
+    const res = R.openPack(run, { type: 'booster', holo: true }); ok(res.cards.some(c => c.ed === 'holo'), 'holo pull has a Holo card'); }
+}
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

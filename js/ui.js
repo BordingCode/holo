@@ -1,9 +1,9 @@
 // Shared UI helpers: DOM builder, icons, card rendering, tilt/shine, arranger, modals.
-import { ICONS } from './icons.js?v=20';
-import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=20';
-import { cardText, cardValues, activeBonuses } from './engine.js?v=20';
-import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=20';
-import { sfx } from './audio.js?v=20';
+import { ICONS } from './icons.js?v=21';
+import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=21';
+import { cardText, cardValues, activeBonuses } from './engine.js?v=21';
+import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=21';
+import { sfx } from './audio.js?v=21';
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -120,7 +120,7 @@ export function packColors(spec) {
   if (spec.type === 'set') return [SETS[spec.set].color, SETS[spec.set].c2];
   return [PACKS[spec.type].color, PACKS[spec.type].c2];
 }
-export function packName(spec) { if (spec.type === 'gumball') return 'Gumball Capsule'; if (spec.type === 'showcase') return 'Display Case'; return spec.type === 'set' ? `${SETS[spec.set].name} Box` : PACKS[spec.type].name; }
+export function packName(spec) { if (spec.type === 'gumball') return 'Gumball Capsule'; if (spec.type === 'showcase') return 'Display Case'; if (spec.holo) return 'Holo Pull'; return spec.type === 'set' ? `${SETS[spec.set].name} Box` : PACKS[spec.type].name; }
 export function packIcon(spec) {
   if (spec.type === 'set') return SETS[spec.set].glyph;
   return { showcase: 'open-treasure-chest', gumball: 'slot-machine', booster: 'star-swirl', cursed: 'all-seeing-eye', collector: 'crowned-skull' }[spec.type] || 'card-random';

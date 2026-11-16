@@ -1,15 +1,15 @@
 // Battle screen: plan (rearrange, target) → FIGHT → animated event playback.
-import { CARDS, ENEMIES, HEROES, TACTICS, ENEMY_EDITIONS, RARITY } from './data.js?v=20';
-import { playRound, intentView, alive, useTactic } from './engine.js?v=20';
-import { h, $, $$, icon, arranger, toast, pillCoins, modal } from './ui.js?v=20';
-import { sfx, music } from './audio.js?v=20';
-import { burst, centerOf, floatText, shake, banner } from './fx.js?v=20';
-import { meta, saveMeta } from './meta.js?v=20';
+import { CARDS, ENEMIES, HEROES, TACTICS, ENEMY_EDITIONS, RARITY } from './data.js?v=21';
+import { playRound, intentView, alive, useTactic } from './engine.js?v=21';
+import { h, $, $$, icon, arranger, toast, pillCoins, modal } from './ui.js?v=21';
+import { sfx, music } from './audio.js?v=21';
+import { burst, centerOf, floatText, shake, banner } from './fx.js?v=21';
+import { meta, saveMeta } from './meta.js?v=21';
 
 const STATUS = [['burn', 'flame', '#ff8a3d'], ['poison', 'poison', '#9be15d'], ['vuln', 'broken-shield', '#ff6bd6'], ['weak', 'broken-bone', '#b8aee0'], ['str', 'biceps', '#ffb03a'], ['thorns', 'thorny-vine', '#c7e07a']];
 const SPECIAL_ICON = { shred: 'box-cutter', steal: 'old-king', copy: 'two-shadows', wrap: 'floating-ghost', pilfer: 'two-coins' };
 const SPECIAL_TEXT = { shred: 'Shred', steal: 'Steal', copy: 'Copy', wrap: 'Wrap', pilfer: 'Pilfer' };
-const DMG_COLOR = { hit: '#ffffff', atk: '#ff5d73', burn: '#ff8a3d', poison: '#9be15d', thorns: '#c7e07a', king: '#b07cff', jackpot: '#ffd166', self: '#ff5d73' };
+const DMG_COLOR = { hit: '#ffffff', atk: '#ff5d73', pierce: '#9fe7ff', burn: '#ff8a3d', poison: '#9be15d', thorns: '#c7e07a', king: '#b07cff', jackpot: '#ffd166', self: '#ff5d73' };
 
 export function battleScreen(ctx, B, kind) {
   const { run } = ctx;
@@ -128,7 +128,7 @@ export function battleScreen(ctx, B, kind) {
     if (playing || B.over) { el.innerHTML = ''; return; }
     let tot = 0;
     for (const e of alive(B)) { if (e.stunned) continue; const v = intentView(B, e); if (v.atk) tot += v.atk * (v.times || 1); }
-    const blk = B.player.block;
+    const blk = alive(B).some(e => ENEMIES[e.id].pierce) ? 0 : B.player.block; // Laminator: Block doesn't help
     el.className = 'incoming ' + (tot === 0 ? 'safe' : tot > blk ? 'danger' : 'safe');
     el.innerHTML = tot ? `${icon('crossed-swords')}Incoming ${tot}${blk ? ` · Block ${blk}` : ''}` : 'No attacks coming';
   }

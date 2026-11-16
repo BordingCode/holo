@@ -1,5 +1,5 @@
 // HOLO persistence: meta-progress (binder, unlocks, heat) + the in-progress run.
-import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=20';
+import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=21';
 
 const META_KEY = 'holo.meta.v1', RUN_KEY = 'holo.run.v1';
 
@@ -42,11 +42,11 @@ export const distinctPulled = () => Object.keys(meta.binder).filter(k => CARDS[k
 
 // ---- unlocks ---------------------------------------------------------------
 export const UNLOCKS = [
-  { id: 'clock', kind: 'set', text: 'Clockwork set joins the packs', req: 'Defeat The Shredder (Act I boss)', test: () => meta.flags.beatShredder },
-  { id: 'wick', kind: 'hero', text: 'Hero: Wick, the Candle Witch', req: 'Defeat The Shredder (Act I boss)', test: () => meta.flags.beatShredder },
+  { id: 'clock', kind: 'set', text: 'Clockwork set joins the packs', req: 'Defeat the Act I boss', test: () => meta.flags.beatShredder },
+  { id: 'wick', kind: 'hero', text: 'Hero: Wick, the Candle Witch', req: 'Defeat the Act I boss', test: () => meta.flags.beatShredder },
   { id: 'gilded', kind: 'set', text: 'Gilded set joins the packs', req: 'Pull 18 different cards', test: () => distinctPulled() >= 18, prog: () => [distinctPulled(), 18] },
   { id: 'glint', kind: 'hero', text: 'Hero: Glint, the Fox Thief', req: 'Pull 25 different cards', test: () => distinctPulled() >= 25, prog: () => [distinctPulled(), 25] },
-  { id: 'void', kind: 'set', text: 'Cursed Packs (Void set) appear in shops', req: 'Defeat The Collector (Act II boss)', test: () => meta.flags.beatCollector },
+  { id: 'void', kind: 'set', text: 'Cursed Packs (Void set) appear in shops', req: 'Defeat the Act II boss', test: () => meta.flags.beatCollector },
   { id: 'heat', kind: 'heat', text: 'HEAT difficulty ladder', req: 'Win a run', test: () => meta.stats.wins > 0 },
 ];
 

@@ -38,6 +38,18 @@ He asked to keep improving until session usage runs out, and to use Fable (model
       Room .lamp CSS is scoped to .room (battle has its own .lamp!). Prop icons re-added to icons.js (were Vintage-era).
 - NEXT ideas: Mathias's phone feel test; maybe door variety per type (shop door with window, boss door chains).
 
+## 2026-11-16 Research picks 1+4 (Mathias: "go"): boss pool + elite prizes on the map
+- Boss pool: each act rolls 1 of 2 bosses per run (R.pickBossId: seeded by run.seed, stored run.bossIds[act]; Balatro boss-blind idea).
+  New: Rubber Band Ball (A1, `bounce`: first hit each round does nothing, half bounces back — B.bounced), The Laminator
+  (A2, `pierce`: attacks use damage kind 'pierce' = ignore Block; incoming readout ignores Block), The Appraiser
+  (A3, `appraise`: plain-edition cards deal half). Icons yarn/steamroller/steampunk-goggles.
+- Map shows this act's boss + rule in a .bosspanel under the title.
+- Elite prizes (StS risk/reward): genMap rolls nd.prize set/holo/relic(/tin act2+); map loottag shows it (prizeTag);
+  rewards: holo = booster with spec.holo (last pull forced Holo, packName 'Holo Pull'), relic = choose 1 of 2, tin = Collector's Tin.
+- Unlock texts now "Defeat the Act I/II boss" (flags were already per act). ACHIEVEMENTS array in data.js is unused.
+- Sim: h0 Kip 71.7 · Wick 60 · Glint 58; h8 Wick 24.5. Boss kill counts in sim "deaths:" line.
+- Other research ideas offered, not built: rule-changing starting packs, Heat as rules, between-run story lines.
+
 ## 2026-11-16 ROLLBACK: original map back, card growing removed (Mathias: "walking was better before", "grow thing not intuitive")
 - mapScreen = the ORIGINAL dot map again (restored from 8456135). Rooms/doors/props/nights/spots/pockets REMOVED; js/explore.js deleted.
   (audio.js still has unused listen/creak/explore music modes.)

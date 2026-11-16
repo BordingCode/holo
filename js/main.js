@@ -1,13 +1,13 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=20';
-import * as R from './run.js?v=20';
-import { hashStr } from './rng.js?v=20';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=20';
-import { packScreen } from './pack.js?v=20';
-import { battleScreen } from './battle.js?v=20';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=20';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=20';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=20';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=21';
+import * as R from './run.js?v=21';
+import { hashStr } from './rng.js?v=21';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=21';
+import { packScreen } from './pack.js?v=21';
+import { battleScreen } from './battle.js?v=21';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=21';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=21';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=21';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -223,6 +223,24 @@ function relicPicker(choices, onPick, title = 'Choose a relic') {
   return wrap;
 }
 
+// what an elite drops, shown above it on the map
+const PRIZES = {
+  holo: { icon: 'sparkles', color: '#7ff0ff', label: 'Holo pull' },
+  relic: { icon: 'open-treasure-chest', color: '#ffe27a', label: 'Relic' },
+  tin: { icon: 'crowned-skull', color: '#ffd166', label: "Collector's Tin" },
+};
+function prizeTag(nd) {
+  const P = PRIZES[nd.prize];
+  if (P) return `<span class="loottag" style="--k:${P.color}">${icon(P.icon)}${P.label}</span>`;
+  if (nd.loot && SETS[nd.loot]) return `<span class="loottag" style="--k:${SETS[nd.loot].color}">${icon(SETS[nd.loot].glyph)}${SETS[nd.loot].name} Box</span>`;
+  return '';
+}
+// this act's boss and its rule, visible from the first step so you can build against it
+function bossPanel() {
+  const E = ENEMIES[R.pickBossId(run)];
+  return h('div', { class: 'bosspanel', style: { '--bc': E.color }, html: `<span class="bi">${icon(E.icon)}</span><span><b>${E.name}</b> waits at the top<br><small>${E.rule}</small></span>` });
+}
+
 function mapScreen(fresh) {
   music('calm');
   const scr = h('div', { class: 'screen' });
@@ -244,7 +262,7 @@ function mapScreen(fresh) {
     const N = NODE[nd.type], p = pos(nd);
     const el = h('div', { class: `node ${nd.type === 'boss' ? 'boss' : ''}${nd.done ? ' done' : ''}${run.pos === nd.id ? ' here' : ''}${can.has(nd.id) ? ' can' : ''}`, style: { left: p.x + '%', top: p.y + 'px', '--nc': N.color } });
     el.innerHTML = icon(nd.type === 'boss' ? ENEMIES[R.pickBossId(run)].icon : N.icon) + `<span class="lbl">${nd.type === 'boss' ? ENEMIES[R.pickBossId(run)].name : N.label}</span>`
-      + (nd.type === 'elite' && nd.loot && SETS[nd.loot] && !nd.done ? `<span class="loottag" style="--k:${SETS[nd.loot].color}">${icon(SETS[nd.loot].glyph)}${SETS[nd.loot].name}</span>` : '');
+      + (nd.type === 'elite' && !nd.done ? prizeTag(nd) : '');
     if (can.has(nd.id)) el.addEventListener('click', () => { sfx.tap(); enter(nd.id); });
     map.append(el);
   }
@@ -252,7 +270,7 @@ function mapScreen(fresh) {
   const legend = h('div', { class: 'legend', html: Object.entries(NODE).filter(([k]) => k !== 'boss').map(([k, n]) => `<span style="color:${n.color}">${icon(n.icon).replace('<svg', `<svg style="fill:${n.color}"`)}${n.label}</span>`).join('') });
   const banner2 = h('div', { class: 'actbanner' }, h('div', { class: 'sub', style: { 'font-weight': 900, 'letter-spacing': '.2em' } }, `ACT ${run.act} · FLOOR ${run.floor}${run.daily ? ' · DAILY' : ''}${run.heat ? ' · HEAT ' + run.heat : ''}`), h('div', { class: 'h2' }, ACT_NAME[run.act]));
   const arr = arranger(run, { onChange: save, merge: true });
-  scr.append(topbarRun(), banner2, legend, scrollEl, arr.detail, arr.el);
+  scr.append(topbarRun(), banner2, bossPanel(), legend, scrollEl, arr.detail, arr.el);
   mount(scr);
   // scroll so the next choices are visible
   requestAnimationFrame(() => {
@@ -333,7 +351,7 @@ function rewardScreen() {
   if (rew.tactic) lines.append(h('span', { class: 'pill', style: { color: RARITY[TACTICS[rew.tactic].r].color }, html: `${icon('ticket')}Tactic: ${TACTICS[rew.tactic].name}` }));
   body.append(lines);
   const needRelic = rew.relics && rew.relics.length && !p.relic;
-  if (needRelic) body.append(relicPicker(rew.relics, (id) => { p.relic = id; R.takeRelic(run, id); save(); toast(`<b>${RELICS[id].name}</b> — ${RELICS[id].text}`, 3000); rewardScreen(); }, 'Boss relic — choose one'));
+  if (needRelic) body.append(relicPicker(rew.relics, (id) => { p.relic = id; R.takeRelic(run, id); save(); toast(`<b>${RELICS[id].name}</b> — ${RELICS[id].text}`, 3000); rewardScreen(); }, rew.kind === 'boss' ? 'Boss relic — choose one' : 'Elite relic — choose one'));
   else if (p.relic) lines.append(h('span', { class: 'pill', style: { color: '#ffe27a' }, html: `${icon(RELICS[p.relic].icon)}${RELICS[p.relic].name}` }));
   if (rew.shattered.length) body.append(h('div', { class: 'rulebar', html: `<b>Shattered:</b> ${rew.shattered.map(c => CARDS[c.id].name).join(', ')} — Cracked cards break after 3 fights.` }));
   for (const u of rew.unlocks || []) { const U = UNLOCKS.find(x => x.id === u); body.append(h('div', { class: 'unlock done', html: `${icon('star-swirl')}<span><b>UNLOCKED:</b> ${U.text}</span>` })); }
