@@ -246,6 +246,16 @@ export const HEROES = {
 // ---------------------------------------------------------------------------
 // Packs
 // ---------------------------------------------------------------------------
+// Starting kits: picked at the start of a run; each bends a rule instead of adding power.
+// need = unlock requirement (checked in meta.js)
+export const KITS = {
+  standard:  { name: 'Standard', icon: 'card-random', text: 'The usual run.' },
+  bargain:   { name: 'Bargain Bin', icon: 'price-tag', text: 'Every shop stocks 2 extra packs, but fights pay 30% fewer coins.', need: 'Finish 1 run' },
+  collector: { name: "Collector's Kit", icon: 'crowned-skull', text: 'Every pack has 1 extra card, but shops stock 2 fewer packs.', need: 'Finish 3 runs' },
+  misprint:  { name: 'Misprint Kit', icon: 'stamper', text: 'Your starting cards are Misprints and Misprints turn up 4× as often — but Foils and Holos only half as often.', need: 'Finish 5 runs' },
+  shiny:     { name: 'Shiny Kit', icon: 'sparkles', text: 'Your starting cards are Foil (×1.5), but you start with 15% less max HP.', need: 'Win a run' },
+};
+
 export const PACKS = {
   booster:   { name: 'Booster Pack', price: 12, size: 4, odds: { C: 64, U: 26, R: 8.5, M: 1.5 }, ed: 1, color: '#4cc9f0', c2: '#3a0ca3',
     blurb: '4 cards from every unlocked set.' },

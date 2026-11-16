@@ -1,9 +1,9 @@
 // Shared UI helpers: DOM builder, icons, card rendering, tilt/shine, arranger, modals.
-import { ICONS } from './icons.js?v=21';
-import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=21';
-import { cardText, cardValues, activeBonuses } from './engine.js?v=21';
-import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=21';
-import { sfx } from './audio.js?v=21';
+import { ICONS } from './icons.js?v=22';
+import { CARDS, SETS, RARITY, EDITIONS, PACKS, HEROES, SET_BONUS, TACTICS, RELICS } from './data.js?v=22';
+import { cardText, cardValues, activeBonuses } from './engine.js?v=22';
+import { sellValue, mergeOutcome, applyMerge, mergeTargets, mergeLabel, MAX_STAR } from './run.js?v=22';
+import { sfx } from './audio.js?v=22';
 
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];

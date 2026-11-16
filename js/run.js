@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=21';
-import { makeRng, hashStr } from './rng.js?v=21';
-import { createBattle, ROW_SIZE } from './engine.js?v=21';
+import { CARDS, CARD_LIST, PACKS, KITS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=22';
+import { makeRng, hashStr } from './rng.js?v=22';
+import { createBattle, ROW_SIZE } from './engine.js?v=22';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;
@@ -18,10 +18,10 @@ export function rngOf(run) {
 // ---- heat (difficulty ladder) ---------------------------------------------
 export const HEAT = [
   'Standard run.',
-  'Enemies have +15% HP.',
+  'Your bench holds only 2 cards.',
   'Enemies hit 25% harder.',
   'Fights pay 20% fewer coins.',
-  'Elites and bosses have +25% HP.',
+  'Elites bring a minion, and elites and bosses have +25% HP.',
   'Start with 10% less max HP.',
   'Packs cost 3 more, and Act 2–3 enemies have +15% HP.',
   'Bosses start with +5 Strength.',
@@ -31,7 +31,7 @@ export const HEAT = [
 export function enemyMods(run, kind) {
   const h = run.heat;
   const ACT_HP = { 1: 1.3, 2: 2.15, 3: 3.0 }, ACT_DMG = { 1: 1.3, 2: 1.7, 3: 2.1 };
-  let hpMult = (ACT_HP[run.act] || 1) * (1 + (h >= 1 ? 0.15 : 0) + ((kind === 'elite' || kind === 'boss') && h >= 4 ? 0.25 : 0) + (h >= 6 && run.act >= 2 ? 0.15 : 0));
+  let hpMult = (ACT_HP[run.act] || 1) * (1 + ((kind === 'elite' || kind === 'boss') && h >= 4 ? 0.25 : 0) + (h >= 6 && run.act >= 2 ? 0.15 : 0));
   const dmgMult = (ACT_DMG[run.act] || 1) * (h >= 2 ? 1.25 : 1);
   const str = kind === 'boss' && h >= 7 ? 5 : 0;
   return { hpMult, dmgMult, str };
@@ -55,19 +55,21 @@ export const allOwned = run => [...run.row, ...run.bench].filter(Boolean);
 export const hasPassive = (run, p, includeBench) => (includeBench ? allOwned(run) : run.row.filter(Boolean)).some(c => CARDS[c.id].passive === p);
 
 // ---- new run ------------------------------------------------------------------
-export function newRun({ hero = 'kip', heat = 0, seed, daily = false, unlockedSets }) {
+export function newRun({ hero = 'kip', heat = 0, seed, daily = false, unlockedSets, kit = 'standard' }) {
   seed = seed ?? (Math.random() * 2 ** 32) >>> 0;
   const H = HEROES[hero];
-  const maxHp = Math.round(H.hp * (heat >= 5 ? 0.9 : 1));
+  if (!KITS[kit]) kit = 'standard';
+  const maxHp = Math.round(H.hp * (heat >= 5 ? 0.9 : 1) * (kit === 'shiny' ? 0.85 : 1));
   const run = {
-    v: 1, seed, rngState: seed, daily, hero, heat, hp: maxHp, maxHp, coins: H.coins,
-    row: Array(ROW_SIZE).fill(null), bench: Array(BENCH_SIZE).fill(null), uid: 1,
+    v: 1, seed, rngState: seed, daily, hero, heat, kit, hp: maxHp, maxHp, coins: H.coins,
+    row: Array(ROW_SIZE).fill(null), bench: Array(heat >= 1 ? 2 : BENCH_SIZE).fill(null), uid: 1,
     act: 1, map: null, pos: null, floor: 0, sets: unlockedSets || ['base', 'ember', 'venom', 'iron'],
     stats: { fights: 0, elites: 0, bosses: 0, packs: 0, pulls: [], dmgBest: 0, coinsEarned: 0 },
     pending: null, over: null, startedAt: Date.now(),
     tactics: [], relics: [], pity: 0,
   };
-  H.start.forEach((id, k) => { run.row[k] = newCard(run, id); });
+  const startEd = kit === 'shiny' ? 'foil' : kit === 'misprint' ? 'misprint' : 'normal';
+  H.start.forEach((id, k) => { run.row[k] = newCard(run, id, startEd); });
   run.map = genMap(run, 1);
   run.tactics.push(randomTactic(run, 'C'));
   return run;
@@ -170,7 +172,7 @@ export function pickEncounter(run, kind) {
   const rng = rngOf(run);
   const E = ENCOUNTERS[run.act];
   if (kind === 'boss') return [pickBossId(run)];
-  if (kind === 'elite') return rng.pick(E.elite);
+  if (kind === 'elite') { const el = rng.pick(E.elite); return run.heat >= 4 ? [...el, rng.pick(E.easy)[0]] : el; } // Heat 4: elites bring a minion
   const fightsThisAct = run.actFights || 0;
   return rng.pick(fightsThisAct < 2 ? E.easy : E.normal);
 }
@@ -197,14 +199,14 @@ export function finishBattle(run, B) {
   run.hp = Math.max(0, B.player.hp);
   run.coins = B.coins;
   run.pending = null;
-  if (B.over !== 'win') { run.over = 'lose'; run.killedBy = B.enemies.map(e => e.name)[0]; return null; }
+  if (B.over !== 'win') { run.over = 'lose'; run.killedBy = B.enemies.map(e => e.name)[0]; run.killedById = B.enemies[0].id; return null; }
   const rng = rngOf(run);
   run.stats.fights++; run.actFights = (run.actFights || 0) + 1;
   const shattered = [];
   run.row.forEach((c, k) => {
     if (c && c.ed === 'cracked') { c.cracks--; if (c.cracks <= 0) { shattered.push(c); run.row[k] = null; } }
   });
-  const coinScale = run.heat >= 3 ? 0.8 : 1;
+  const coinScale = (run.heat >= 3 ? 0.8 : 1) * (run.kit === 'bargain' ? 0.7 : 1);
   let coins = kind === 'boss' ? 45 : kind === 'elite' ? 22 : rng.int(8, 12) + run.act * 2;
   coins = Math.round(coins * coinScale);
   let interest = 0;
@@ -250,7 +252,7 @@ export function openPack(run, spec) {
   else if (spec.set) pool = CARD_LIST.filter(c => c.set === spec.set);
   else pool = CARD_LIST.filter(c => run.sets.includes(c.set) && c.set !== 'void');
   const cards = [];
-  const size = P.size + (hasRelic(run, 'fat_packs') ? 1 : 0);
+  const size = P.size + (hasRelic(run, 'fat_packs') ? 1 : 0) + (run.kit === 'collector' ? 1 : 0);
   const pityHit = (run.pity || 0) >= PITY_MAX;
   for (let k = 0; k < size; k++) {
     let r = rng.weighted(P.odds);
@@ -263,7 +265,7 @@ export function openPack(run, spec) {
     if (!options.length) options = pool;
     const def = rng.pick(options);
     const eo = {};
-    for (const k2 in ED_ODDS) eo[k2] = k2 === 'normal' ? ED_ODDS[k2] : ED_ODDS[k2] * P.ed * clover;
+    for (const k2 in ED_ODDS) eo[k2] = k2 === 'normal' ? ED_ODDS[k2] : ED_ODDS[k2] * P.ed * clover * (run.kit === 'misprint' ? (k2 === 'misprint' ? 4 : k2 === 'foil' || k2 === 'holo' ? 0.5 : 1) : 1);
     const ed = spec.holo && k === size - 1 ? 'holo' : rng.weighted(eo); // elite prize: a guaranteed Holo pull
     cards.push(newCard(run, def.id, ed, 1, rng));
   }
@@ -364,6 +366,8 @@ export function makeShop(run) {
   if (run.sets.includes('void')) stock.push({ type: 'cursed' });
   if (run.act >= 2) stock.push({ type: 'collector' });
   else stock.push({ type: 'booster' });
+  if (run.kit === 'bargain') { stock.push({ type: 'booster' }); stock.push({ type: 'set', set: sets[2] || sets[0] }); } // Bargain Bin: 2 extra packs
+  if (run.kit === 'collector') stock.splice(-2, 2); // Collector's Kit: 2 fewer packs (but every pack is bigger)
   // showcase: one shiny Rare/Mythic in the display case — something to save up for
   const scR = rng.chance(0.3 + run.act * 0.1) ? 'M' : 'R';
   const scPool = CARD_LIST.filter(d => d.r === scR && run.sets.includes(d.set));

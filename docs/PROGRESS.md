@@ -38,6 +38,19 @@ He asked to keep improving until session usage runs out, and to use Fable (model
       Room .lamp CSS is scoped to .room (battle has its own .lamp!). Prop icons re-added to icons.js (were Vintage-era).
 - NEXT ideas: Mathias's phone feel test; maybe door variety per type (shop door with window, boss door chains).
 
+## 2026-11-16 Research ideas 2, 3, 5 (Mathias: "build the other three ideas too")
+- STARTING KITS (data.js KITS; run.kit; picker in heroSelect, remembered as meta.lastKit; daily = standard):
+  standard · bargain (+2 shop packs, fight coins ×0.7) · collector (+1 card/pack, shops −2 packs) · misprint (Misprint
+  starters, misprint ×4 / foil+holo ×0.5 odds) · shiny (Foil starters, max HP ×0.85).
+  GOTCHA: price-based kit effects did NOTHING — the bot ends runs with 400–650 unspent coins (economy is coin-rich;
+  shops are stock-limited, not money-limited). Kit/heat levers must change STOCK or cards, not prices.
+  Sim (Wick h0): standard 59.6 · bargain 60.4 · collector 58.4 · misprint 60.8 · shiny 54. Heat 8: Kip 29.5 · Wick 21.5 · Glint 23. Unlocks in meta UNLOCKS kind 'kit'
+  (1/3/5 runs, first win); kitUnlocked(k). End screen announces new kits once (meta.kitsSeen). Sim: KIT=id.
+- HEAT AS RULES: Heat 1 = bench holds only 2 (was enemy HP +15%); Heat 4 = elites bring a minion (+ the old +25% HP).
+- STORY: js/story.js — Nell the night clerk, one line per finished run (run.nell, decided once in endScreen):
+  first loss to a boss → BOSS_TIPS[id] (once each) · else next of 12 STORY beats (meta.story.beat) · first win line ·
+  then WIN/EARLY/LATE pools. run.killedById recorded on loss.
+
 ## 2026-11-16 Research picks 1+4 (Mathias: "go"): boss pool + elite prizes on the map
 - Boss pool: each act rolls 1 of 2 bosses per run (R.pickBossId: seeded by run.seed, stored run.bossIds[act]; Balatro boss-blind idea).
   New: Rubber Band Ball (A1, `bounce`: first hit each round does nothing, half bounces back — B.bounced), The Laminator

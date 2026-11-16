@@ -159,5 +159,31 @@ function window_r(x) { return globalThis.__C[x.id].r; }
     ok(el.length && el.every(n => ['set', 'holo', 'relic'].includes(n.prize)), 'act 1 elites have a prize (no tin)');
     const res = R.openPack(run, { type: 'booster', holo: true }); ok(res.cards.some(c => c.ed === 'holo'), 'holo pull has a Holo card'); }
 }
+// ---- starting kits, Heat rules, Nell's story ----
+{
+  const { PACKS: PK } = await import('../js/data.js');
+  const std = R.newRun({ hero: 'kip', seed: 11 });
+  const shiny = R.newRun({ hero: 'kip', seed: 11, kit: 'shiny' });
+  ok(shiny.row.filter(Boolean).every(c => c.ed === 'foil') && shiny.maxHp === Math.round(std.maxHp * 0.85), 'shiny kit: foil starters, -15% HP');
+  const mis = R.newRun({ hero: 'kip', seed: 11, kit: 'misprint' });
+  ok(mis.row.filter(Boolean).every(c => c.ed === 'misprint' && c.mp != null), 'misprint kit: misprint starters');
+  const col = R.newRun({ hero: 'kip', seed: 11, kit: 'collector' });
+  ok(R.openPack(col, { type: 'booster' }).cards.length === PK.booster.size + 1, 'collector kit: +1 card per pack');
+  ok(R.makeShop(col).stock.length === R.makeShop(std).stock.length - 2, 'collector kit: 2 fewer packs in shops');
+  const bar = R.newRun({ hero: 'kip', seed: 11, kit: 'bargain' });
+  ok(R.makeShop(bar).stock.length === R.makeShop(std).stock.length + 2, 'bargain kit: 2 extra packs in shops');
+  ok(R.newRun({ hero: 'kip', seed: 1, kit: 'nonsense' }).kit === 'standard', 'unknown kit falls back to standard');
+  ok(R.newRun({ hero: 'kip', seed: 1, heat: 1 }).bench.length === 2 && std.bench.length === 4, 'heat 1: bench holds 2');
+  { const run = R.newRun({ hero: 'kip', seed: 3, heat: 4 }); const enc = R.pickEncounter(run, 'elite'); ok(enc.length >= 2, 'heat 4: elites bring a minion'); }
+  { const { nightLine, STORY, BOSS_TIPS } = await import('../js/story.js');
+    const m = {}; const lost = { over: 'lose', act: 1, killedById: 'dust_bunny' };
+    const l1 = nightLine(m, lost), l2 = nightLine(m, lost);
+    ok(l1.text === STORY[0] && l2.text === STORY[1], 'story beats come in order, one per run');
+    const t = nightLine(m, { over: 'lose', act: 1, killedById: 'shredder' }); ok(t.text === BOSS_TIPS.shredder, 'first loss to a boss gives its tip');
+    ok(nightLine(m, { over: 'lose', act: 1, killedById: 'shredder' }).kind === 'story', 'boss tip only once');
+    ok(nightLine(m, { over: 'win', act: 3 }).kind === 'win', 'first win has its own line');
+    for (let i = 0; i < 20; i++) nightLine(m, lost);
+    ok(m.story.beat === STORY.length && nightLine(m, lost).text, 'after the story, lines keep coming'); }
+}
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -1,5 +1,5 @@
 // HOLO persistence: meta-progress (binder, unlocks, heat) + the in-progress run.
-import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=21';
+import { CARD_LIST, CARDS, ED_RANK, SET_ORDER } from './data.js?v=22';
 
 const META_KEY = 'holo.meta.v1', RUN_KEY = 'holo.run.v1';
 
@@ -48,12 +48,17 @@ export const UNLOCKS = [
   { id: 'glint', kind: 'hero', text: 'Hero: Glint, the Fox Thief', req: 'Pull 25 different cards', test: () => distinctPulled() >= 25, prog: () => [distinctPulled(), 25] },
   { id: 'void', kind: 'set', text: 'Cursed Packs (Void set) appear in shops', req: 'Defeat the Act II boss', test: () => meta.flags.beatCollector },
   { id: 'heat', kind: 'heat', text: 'HEAT difficulty ladder', req: 'Win a run', test: () => meta.stats.wins > 0 },
+  { id: 'kit_bargain', kind: 'kit', text: 'Starting kit: Bargain Bin', req: 'Finish 1 run', test: () => meta.stats.runs >= 1, prog: () => [meta.stats.runs, 1] },
+  { id: 'kit_collector', kind: 'kit', text: "Starting kit: Collector's Kit", req: 'Finish 3 runs', test: () => meta.stats.runs >= 3, prog: () => [meta.stats.runs, 3] },
+  { id: 'kit_misprint', kind: 'kit', text: 'Starting kit: Misprint Kit', req: 'Finish 5 runs', test: () => meta.stats.runs >= 5, prog: () => [meta.stats.runs, 5] },
+  { id: 'kit_shiny', kind: 'kit', text: 'Starting kit: Shiny Kit', req: 'Win a run', test: () => meta.stats.wins > 0 },
 ];
 
 export function unlocked(id) { const u = UNLOCKS.find(u => u.id === id); return u ? !!u.test() : true; }
 export function unlockedSets() {
   return SET_ORDER.filter(s => ['base', 'ember', 'venom', 'iron'].includes(s) || unlocked(s));
 }
+export function kitUnlocked(k) { return k === 'standard' || unlocked('kit_' + k); }
 export function heroUnlocked(h) { return h === 'kip' || unlocked(h); }
 export function snapshotUnlocks() { return UNLOCKS.filter(u => u.test()).map(u => u.id); }
 

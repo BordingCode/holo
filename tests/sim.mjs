@@ -91,7 +91,7 @@ function play(run, kind) {
 const res = { win: 0, deaths: {}, act: { 1: 0, 2: 0, 3: 0 }, floors: 0 };
 const perCard = {}; // id -> {n, w}
 for (let i = 0; i < N; i++) {
-  const run = R.newRun({ hero: HERO, heat: HEAT, seed: 1000 + i, unlockedSets: ALLSETS });
+  const run = R.newRun({ hero: HERO, heat: HEAT, seed: 1000 + i, unlockedSets: ALLSETS, kit: process.env.KIT || 'standard' });
   if (process.env.STARTWITH) run.row[3] = R.newCard(run, process.env.STARTWITH); // causal test: start with this card
   let guard = 0, lastAct = run.act;
   while (!run.over && guard++ < 200) {

@@ -1,13 +1,14 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS } from './data.js?v=21';
-import * as R from './run.js?v=21';
-import { hashStr } from './rng.js?v=21';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=21';
-import { packScreen } from './pack.js?v=21';
-import { battleScreen } from './battle.js?v=21';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=21';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=21';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=21';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS, KITS } from './data.js?v=22';
+import { nightLine, CLERK } from './story.js?v=22';
+import * as R from './run.js?v=22';
+import { hashStr } from './rng.js?v=22';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=22';
+import { packScreen } from './pack.js?v=22';
+import { battleScreen } from './battle.js?v=22';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=22';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=22';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, kitUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=22';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -72,11 +73,12 @@ function confirmAbandon(then) {
 // HERO SELECT
 // ===========================================================================
 function heroSelect() {
-  let pick = 'kip', heat = Math.min(meta.heatMax, meta.lastHeat || 0);
+  let pick = 'kip', heat = Math.min(meta.heatMax, meta.lastHeat || 0), kit = kitUnlocked(meta.lastKit || 'standard') ? (meta.lastKit || 'standard') : 'standard';
   const scr = h('div', { class: 'screen' });
   const top = h('div', { class: 'topbar' }, h('button', { class: 'iconbtn', onclick: () => { sfx.back(); title(); }, html: icon('anticlockwise-rotation') }), h('span', { class: 'h1' }, 'Choose a hero'));
   const list = h('div', { class: 'heroes' });
   const heatBox = h('div');
+  const kitBox = h('div', { class: 'kits' });
   const startBtn = h('button', { class: 'btn gold', style: { margin: '14px 16px calc(14px + env(safe-area-inset-bottom))' } }, 'Start run');
   function render() {
     list.innerHTML = '';
@@ -90,6 +92,17 @@ function heroSelect() {
       if (ok) el.addEventListener('click', () => { pick = id; sfx.tap(); render(); });
       list.append(el);
     }
+    kitBox.innerHTML = '';
+    kitBox.append(h('div', { class: 'kits-h' }, 'Starting kit'));
+    const kitRow = h('div', { class: 'kit-row' });
+    for (const id in KITS) {
+      const K = KITS[id], ok = kitUnlocked(id);
+      const b = h('button', { class: 'kit' + (kit === id ? ' sel' : '') + (ok ? '' : ' locked'), html: `${icon(ok ? K.icon : 'padlock')}<span>${K.name}</span>` });
+      if (ok) b.addEventListener('click', () => { kit = id; sfx.tap(); render(); });
+      else b.addEventListener('click', () => toast(`<b>${K.name}</b> — locked: ${K.need}.`));
+      kitRow.append(b);
+    }
+    kitBox.append(kitRow, h('div', { class: 'sub kit-text' }, KITS[kit].text));
     heatBox.innerHTML = '';
     if (meta.heatMax > 0) {
       const lvl = h('div', { class: 'lvl' }, heat ? 'HEAT ' + heat : 'NO HEAT');
@@ -101,12 +114,12 @@ function heroSelect() {
     }
   }
   startBtn.addEventListener('click', () => {
-    sfx.tap(); meta.lastHeat = heat; saveMeta();
-    run = R.newRun({ hero: pick, heat, unlockedSets: unlockedSets() });
+    sfx.tap(); meta.lastHeat = heat; meta.lastKit = kit; saveMeta();
+    run = R.newRun({ hero: pick, heat, kit, unlockedSets: unlockedSets() });
     save(); mapScreen(true);
   });
   render();
-  scr.append(top, h('div', { class: 'scroll', style: { flex: '1' } }, list, heatBox), startBtn);
+  scr.append(top, h('div', { class: 'scroll', style: { flex: '1' } }, list, kitBox, heatBox), startBtn);
   mount(scr);
 }
 
@@ -627,7 +640,13 @@ function recordRunEnd(win) {
 
 function endScreen() {
   const win = run.over === 'win';
-  if (!run.recorded) { run.recorded = true; recordRunEnd(win); save(); }
+  if (!run.recorded) {
+    run.recorded = true; recordRunEnd(win);
+    run.nell = nightLine(meta, run); // the night clerk's line, decided once per run
+    meta.kitsSeen ||= ['standard'];
+    run.newKits = Object.keys(KITS).filter(k => kitUnlocked(k) && !meta.kitsSeen.includes(k));
+    meta.kitsSeen.push(...run.newKits); saveMeta(); save();
+  }
   music(null);
   const scr = h('div', { class: 'screen' });
   const H = HEROES[run.hero];
@@ -638,6 +657,10 @@ function endScreen() {
   const fan = h('div', { style: { display: 'flex', gap: '6px', 'justify-content': 'center', 'flex-wrap': 'wrap' } });
   run.row.filter(Boolean).forEach(c => { const el = cardEl(c, { cw: '70px' }); el.addEventListener('click', () => zoomCard(c)); fan.append(el); });
   body.append(h('div', { class: 'sub' }, 'Your final row'), fan);
+  if (run.nell) body.append(h('div', { class: 'nell' + (run.nell.kind === 'tip' ? ' tip' : '') },
+    h('span', { class: 'ni', html: icon(CLERK.icon) }),
+    h('div', {}, h('div', { class: 'nn', html: `<b>${CLERK.name}</b>, ${CLERK.title}${run.nell.beat ? ` <small>· story ${run.nell.beat}/${run.nell.of}</small>` : run.nell.kind === 'tip' ? ' <small>· a tip</small>' : ''}` }), h('div', { class: 'nt' }, run.nell.text))));
+  for (const k of run.newKits || []) body.append(h('div', { class: 'unlock done', html: `${icon(KITS[k].icon)}<span><b>NEW STARTING KIT:</b> ${KITS[k].name} — ${KITS[k].text}</span>` }));
   if (win && !run.daily && meta.heatMax > (run.heat || 0)) body.append(h('div', { class: 'unlock done', html: `${icon('flame')}<span><b>HEAT ${meta.heatMax}</b> unlocked: ${R.HEAT[meta.heatMax]}</span>` }));
   const btns = h('div', { class: 'menu', style: { 'margin-top': '10px' } },
     h('button', { class: 'btn gold', onclick: () => { sfx.tap(); run = null; clearRun(); heroSelect(); } }, 'New run'),
