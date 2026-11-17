@@ -1,14 +1,14 @@
 // HOLO — screens & flow.
-import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS, KITS } from './data.js?v=22';
-import { nightLine, CLERK } from './story.js?v=22';
-import * as R from './run.js?v=22';
-import { hashStr } from './rng.js?v=22';
-import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=22';
-import { packScreen } from './pack.js?v=22';
-import { battleScreen } from './battle.js?v=22';
-import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=22';
-import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=22';
-import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, kitUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=22';
+import { CARDS, CARD_LIST, SETS, SET_ORDER, HEROES, PACKS, RARITY, ENEMIES, RELICS, TACTICS, KITS } from './data.js?v=23';
+import { nightLine, CLERK } from './story.js?v=23';
+import * as R from './run.js?v=23';
+import { hashStr } from './rng.js?v=23';
+import { h, $, $$, icon, cardEl, attachTilt, idleShimmer, enableGyro, toast, modal, zoomCard, arranger, detailSheet, pillHp, pillCoins, packColors, packName, packIcon } from './ui.js?v=23';
+import { packScreen } from './pack.js?v=23';
+import { battleScreen } from './battle.js?v=23';
+import { sfx, music, unlockAudio, audioSettings } from './audio.js?v=23';
+import { initFx, burst, centerOf, banner, shake, setReduceMotion, RARITY_FX } from './fx.js?v=23';
+import { meta, saveMeta, loadRun, saveRun, clearRun, UNLOCKS, unlockedSets, heroUnlocked, kitUnlocked, snapshotUnlocks, distinctPulled, todayKey, recordPull } from './meta.js?v=23';
 
 const app = $('#app');
 initFx(app, $('#fx'));
@@ -465,21 +465,29 @@ function shopScreen() {
       }
       body.append(tl);
     }
-    const mend = h('div', { class: 'service' + (S.mend.used || run.hp >= run.maxHp ? ' used' : '') }, h('div', { class: 'wn' }, 'Mend'), h('div', { class: 'wb' }, `Heal ${S.mend.amt} HP`), h('span', { class: 'price', html: `${icon('two-coins')}${S.mend.price}` }));
+    const full = run.hp >= run.maxHp;
+    const mend = h('div', { class: 'service' + (full ? ' used' : '') + (run.coins < S.mend.price ? ' poor' : '') }, h('div', { class: 'wn' }, 'Mend'), h('div', { class: 'wb' }, full ? 'You are at full HP' : `Heal ${S.mend.amt} HP · price rises each time`), h('span', { class: 'price', html: `${icon('two-coins')}${S.mend.price}` }));
     mend.addEventListener('click', () => {
-      if (run.coins < S.mend.price) { toast('Not enough coins'); return; }
-      run.coins -= S.mend.price; S.mend.used = true; run.hp = Math.min(run.maxHp, run.hp + S.mend.amt); sfx.heal(); save(); shopScreen();
+      if (full) { toast('Already at full HP'); return; }
+      if (!R.buyMend(run, S)) { toast('Not enough coins'); sfx.back(); return; }
+      sfx.heal(); save(); shopScreen();
     });
-    const pol = h('div', { class: 'service' + (S.polish.used ? ' used' : '') }, h('div', { class: 'wn' }, 'Polish'), h('div', { class: 'wb' }, '+1★ to a card (select it below)'), h('span', { class: 'price', html: `${icon('two-coins')}${S.polish.price}` }));
+    const pol = h('div', { class: 'service' + (run.coins < S.polish.price ? ' poor' : '') }, h('div', { class: 'wn' }, 'Polish'), h('div', { class: 'wb' }, '+1★ to a card (select it below)'), h('span', { class: 'price', html: `${icon('two-coins')}${S.polish.price}` }));
     pol.addEventListener('click', () => toast('Tap one of your cards below, then <b>Polish</b>'));
-    body.append(h('div', { class: 'services' }, mend, pol));
+    const rp = R.restockPrice(run, S);
+    const rs = h('div', { class: 'service' + (run.coins < rp ? ' poor' : '') }, h('div', { class: 'wn' }, 'Restock'), h('div', { class: 'wb' }, 'Fresh packs on the shelf'), h('span', { class: 'price', html: `${icon('two-coins')}${rp}` }));
+    rs.addEventListener('click', () => {
+      if (!R.restock(run, S)) { toast('Not enough coins'); sfx.back(); return; }
+      sfx.buy(); toast('Fresh stock from the back room'); save(); shopScreen();
+    });
+    body.append(h('div', { class: 'services' }, mend, pol, rs));
   };
   arr = arranger(run, {
     merge: true,
     onChange: () => { save(); shopScreen(); },
     actions: (c, where, idx) => {
       const a = [{ label: `Sell +${R.sellValue(run, c)}`, cls: 'ghost small', fn: () => arr.sell(where, idx) }];
-      if (!S.polish.used && c.star < 3) a.push({ label: `Polish ★ (${S.polish.price})`, cls: 'gold small', disabled: run.coins < S.polish.price, fn: () => { run.coins -= S.polish.price; S.polish.used = true; c.star++; sfx.reveal('U'); toast(`<b>${CARDS[c.id].name}</b> is now ★${c.star}`); save(); shopScreen(); } });
+      if (c.star < 3) a.push({ label: `Polish ★ (${S.polish.price})`, cls: 'gold small', disabled: run.coins < S.polish.price, fn: () => { if (!R.buyPolish(run, S, c)) return; sfx.reveal('U'); toast(`<b>${CARDS[c.id].name}</b> is now ★${c.star}`); save(); shopScreen(); } });
       return a;
     },
   });

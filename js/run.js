@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // HOLO run logic — map, packs, rewards, shop, grader, events. Pure (no DOM).
 // ---------------------------------------------------------------------------
-import { CARDS, CARD_LIST, PACKS, KITS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=22';
-import { makeRng, hashStr } from './rng.js?v=22';
-import { createBattle, ROW_SIZE } from './engine.js?v=22';
+import { CARDS, CARD_LIST, PACKS, KITS, ED_ODDS, RARITY, RARITY_RANK, ED_RANK, ENCOUNTERS, HEROES, MISPRINTS, SET_ORDER, TACTICS, TACTIC_PRICE, RELICS } from './data.js?v=23';
+import { makeRng, hashStr } from './rng.js?v=23';
+import { createBattle, ROW_SIZE } from './engine.js?v=23';
 
 export const BENCH_SIZE = 4;
 export const ACTS = 3;
@@ -46,7 +46,7 @@ export function newCard(run, id, ed = 'normal', star = 1, rng) {
 }
 
 export function sellValue(run, c) {
-  let v = RARITY[CARDS[c.id].r].sell + (c.star - 1) * 3 + (c.ed !== 'normal' && c.ed !== 'cracked' ? 3 : 0);
+  let v = RARITY[CARDS[c.id].r].sell + (c.star - 1) * 2 + (c.ed !== 'normal' && c.ed !== 'cracked' ? 2 : 0);
   if (HEROES[run.hero].perkId === 'fence') v += 1;
   return v;
 }
@@ -129,6 +129,9 @@ export function genMap(run, act) {
     nd.type = rng.weighted(w);
   }
   rows[ROWS_PER_ACT - 1][0].type = 'boss';
+  // the row before the boss: rest by the campfire — or spend your coins at a last shop. Your choice.
+  const pre = rows[ROWS_PER_ACT - 2];
+  if (pre.length > 1) rng.pick(pre).type = 'shop';
   const all = rows.flat();
   if (!all.some(n => n.type === 'shop')) rng.pick(rows[3]).type = 'shop';
   if (!all.some(n => n.type === 'grader')) rng.pick(rows[4]).type = 'grader';
@@ -207,7 +210,7 @@ export function finishBattle(run, B) {
     if (c && c.ed === 'cracked') { c.cracks--; if (c.cracks <= 0) { shattered.push(c); run.row[k] = null; } }
   });
   const coinScale = (run.heat >= 3 ? 0.8 : 1) * (run.kit === 'bargain' ? 0.7 : 1);
-  let coins = kind === 'boss' ? 45 : kind === 'elite' ? 22 : rng.int(8, 12) + run.act * 2;
+  let coins = kind === 'boss' ? 45 : kind === 'elite' ? 22 : rng.int(6, 10) + run.act * 2;
   coins = Math.round(coins * coinScale);
   let interest = 0;
   if (hasPassive(run, 'interest')) interest = Math.min(10, Math.floor(run.coins / 4));
@@ -357,8 +360,8 @@ export function mergeLabel(target, o, star) {
 }
 
 // ---- shop -----------------------------------------------------------------------
-export function makeShop(run) {
-  const rng = rngOf(run);
+// the packs on the shelf (also used by Restock to refill it)
+function shopStock(run, rng) {
   const stock = [{ type: 'booster' }];
   const sets = rng.shuffle(run.sets.filter(s => s !== 'base' && s !== 'void'));
   stock.push({ type: 'set', set: sets[0] });
@@ -368,6 +371,15 @@ export function makeShop(run) {
   else stock.push({ type: 'booster' });
   if (run.kit === 'bargain') { stock.push({ type: 'booster' }); stock.push({ type: 'set', set: sets[2] || sets[0] }); } // Bargain Bin: 2 extra packs
   if (run.kit === 'collector') stock.splice(-2, 2); // Collector's Kit: 2 fewer packs (but every pack is bigger)
+  return stock.map(s => ({ ...s, price: packPrice(run, s.type), sold: false }));
+}
+
+// Services can be bought again and again, but each one costs more every time (per shop visit).
+export const SHOP_STEP = { mend: 10, polish: 14, restock: 8 };
+
+export function makeShop(run) {
+  const rng = rngOf(run);
+  const stock = shopStock(run, rng);
   // showcase: one shiny Rare/Mythic in the display case — something to save up for
   const scR = rng.chance(0.3 + run.act * 0.1) ? 'M' : 'R';
   const scPool = CARD_LIST.filter(d => d.r === scR && run.sets.includes(d.set));
@@ -375,8 +387,35 @@ export function makeShop(run) {
   const scEd = rng.weighted({ holo: 30, foil: 40, gilded: 20, normal: 10 });
   const showcase = { card: newCard(run, scDef.id, scEd, 1, rng), price: Math.round(((scR === 'M' ? 52 : 30) + (scEd === 'holo' ? 10 : scEd === 'foil' ? 6 : 0)) * priceMult(run)), sold: false };
   const tactics = [randomTactic(run), randomTactic(run)].map(id => ({ id, price: Math.round(TACTIC_PRICE[TACTICS[id].r] * priceMult(run)), sold: false }));
-  return { stock: stock.map(s => ({ ...s, price: packPrice(run, s.type), sold: false })), showcase, tactics,
-    mend: { price: Math.round(10 * priceMult(run)), amt: 15, used: false }, polish: { price: Math.round(22 * priceMult(run)), used: false } };
+  return { stock, showcase, tactics,
+    mend: { price: Math.round(10 * priceMult(run)), amt: 15, used: false },
+    polish: { price: Math.round(22 * priceMult(run)), used: false },
+    restock: { price: Math.round(10 * priceMult(run)) } };
+}
+
+// Old saves made before Restock existed: give them one.
+const ensureRestock = (run, S) => (S.restock ||= { price: Math.round(10 * priceMult(run)) });
+export const restockPrice = (run, S) => ensureRestock(run, S).price;
+
+export function buyMend(run, S) {
+  if (run.coins < S.mend.price || run.hp >= run.maxHp) return false;
+  run.coins -= S.mend.price; run.hp = Math.min(run.maxHp, run.hp + S.mend.amt);
+  S.mend.used = true; S.mend.price += Math.round(SHOP_STEP.mend * priceMult(run));
+  return true;
+}
+export function buyPolish(run, S, c) {
+  if (run.coins < S.polish.price || !c || c.star >= 3) return false;
+  run.coins -= S.polish.price; c.star++;
+  S.polish.used = true; S.polish.price += Math.round(SHOP_STEP.polish * priceMult(run));
+  return true;
+}
+// Restock: throw out the packs on the shelf and bring a fresh set from the back.
+export function restock(run, S) {
+  const R0 = ensureRestock(run, S);
+  if (run.coins < R0.price) return false;
+  run.coins -= R0.price; R0.price += Math.round(SHOP_STEP.restock * priceMult(run));
+  S.stock = shopStock(run, rngOf(run));
+  return true;
 }
 
 // ---- grader ----------------------------------------------------------------------

@@ -141,3 +141,12 @@ grading = loupe minigame; collection cards may make runs easier but Deck Box siz
 - Balance 2026-11-14 (all 8 sets, 200 runs): Kip heat0 71.5%, Wick heat0 61.5%, Kip heat8 32%; Holo Golden Age in Deck Box ≈ +7pp.
   ACT_HP {1.3, 2.15, 3.0}, ACT_DMG {1.3, 1.6, 1.95}. NOTE: sims with 2-set pools are meaningless (~100% win).
 - NEXT ideas: Mathias's phone feel test of the Back Room; more customers/regulars; a second released set; Deck Box choice for the bot sim.
+
+## v23 — coin surplus fixed
+- Root cause: SELLING, not fights. A Booster (12c) sold back for ~12c, so packs were free; the bot made 430–700c/run from sales vs ~280 from fights.
+- Sell values halved: C1 U2 R4 M8, +2 per extra star, +2 for a shiny edition.
+- Shop services repeat at rising prices (per visit): Mend +10 each, Polish +14 each, new **Restock** (10c, +8 each) refills the pack shelf.
+- The row before each boss now always has a Shop beside the Rest (heal OR spend).
+- Normal fights pay a little less (6–10 + 2×act, was 8–12).
+- Sim (tests/sim.mjs, bot now mends/polishes/restocks): bot leaves each shop with ~10c; leftover at run end is ~100–140c, mostly the final boss payout.
+  Heat 0: Kip 77.5 / Wick 57.5 / Glint 64.5. Heat 8: Kip 35 / Wick 27 / Glint 27.5 (≈3–5 pts easier than v22).

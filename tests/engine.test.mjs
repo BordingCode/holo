@@ -185,5 +185,25 @@ function window_r(x) { return globalThis.__C[x.id].r; }
     for (let i = 0; i < 20; i++) nightLine(m, lost);
     ok(m.story.beat === STORY.length && nightLine(m, lost).text, 'after the story, lines keep coming'); }
 }
+// ---- coin economy: selling pays less, shop services repeat at rising prices, a shop before every boss ----
+{
+  const run = R.newRun({ hero: 'kip', seed: 21 }); run.coins = 500;
+  const S = R.makeShop(run);
+  run.hp = 10; const p0 = S.mend.price;
+  ok(R.buyMend(run, S) && R.buyMend(run, S) && S.mend.price > p0, 'mend can be bought again, price rises');
+  const c = run.row.find(Boolean); c.star = 1; const q0 = S.polish.price;
+  ok(R.buyPolish(run, S, c) && R.buyPolish(run, S, c) && c.star === 3 && S.polish.price > q0, 'polish repeats, price rises');
+  ok(!R.buyPolish(run, S, c), 'polish stops at 3 stars');
+  S.stock.forEach(it => it.sold = true); const r0 = R.restockPrice(run, S), coins0 = run.coins;
+  ok(R.restock(run, S) && S.stock.every(it => !it.sold) && run.coins === coins0 - r0 && R.restockPrice(run, S) > r0, 'restock refills the shelf and gets pricier');
+  const broke = R.newRun({ hero: 'kip', seed: 21 }); broke.coins = 0; ok(!R.restock(broke, R.makeShop(broke)), 'restock needs coins');
+  const old = R.makeShop(run); delete old.restock; ok(R.restockPrice(run, old) > 0, 'old saved shops get a restock');
+  // a booster's cards sell back for well under its price
+  ok(R.sellValue(run, { id: 'jab', ed: 'normal', star: 1 }) === 1, 'commons sell for 1');
+  let pre = 0, maps = 0;
+  for (let sd = 0; sd < 20; sd++) { const m = R.newRun({ hero: 'kip', seed: 100 + sd }); const rows = m.map.rows || m.map; maps++;
+    const flat = Array.isArray(rows[0]) ? rows : null; if (flat && flat[flat.length - 2].some(n => n.type === 'shop')) pre++; }
+  ok(pre > 0, 'the row before the boss can hold a shop');
+}
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

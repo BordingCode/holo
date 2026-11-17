@@ -16,10 +16,10 @@ export const SETS = {
 export const SET_ORDER = ['base', 'ember', 'venom', 'iron', 'clock', 'gilded', 'void'];
 
 export const RARITY = {
-  C: { name: 'Common',   color: '#d8d2c4', sell: 2 },
-  U: { name: 'Uncommon', color: '#5fd3ff', sell: 4 },
-  R: { name: 'Rare',     color: '#ffcc33', sell: 7 },
-  M: { name: 'Mythic',   color: '#ff4fd8', sell: 14 },
+  C: { name: 'Common',   color: '#d8d2c4', sell: 1 },
+  U: { name: 'Uncommon', color: '#5fd3ff', sell: 2 },
+  R: { name: 'Rare',     color: '#ffcc33', sell: 4 },
+  M: { name: 'Mythic',   color: '#ff4fd8', sell: 8 },
 };
 export const RARITY_RANK = { C: 0, U: 1, R: 2, M: 3 };
 

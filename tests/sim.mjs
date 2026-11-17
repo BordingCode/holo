@@ -104,12 +104,19 @@ for (let i = 0; i < N; i++) {
       if (!play(run, nd.type)) { const k = `${run.act}:${run.killedBy}`; res.deaths[k] = (res.deaths[k] || 0) + 1; break; }
     } else if (nd.type === 'shop') {
       const S = R.makeShop(run);
-      if (run.hp < run.maxHp * 0.5 && run.coins >= S.mend.price) { run.coins -= S.mend.price; run.hp = Math.min(run.maxHp, run.hp + S.mend.amt); }
-      for (const it of [...S.stock].sort((a, b) => b.price - a.price)) {
-        if (it.type === 'cursed') continue;
-        if (run.coins >= it.price) { run.coins -= it.price; openAndPlace(run, it); }
+      const NOSINK = process.env.NOSINK;
+      while (run.hp < run.maxHp * 0.5 && R.buyMend(run, S) && !NOSINK);
+      const buyShelf = () => { for (const it of [...S.stock].sort((a, b) => b.price - a.price)) {
+        if (it.type === 'cursed' || it.sold) continue;
+        if (run.coins >= it.price) { run.coins -= it.price; it.sold = true; openAndPlace(run, it); }
+      } };
+      buyShelf();
+      if (!S.showcase.sold && run.coins >= S.showcase.price) { run.coins -= S.showcase.price; S.showcase.sold = true; placeCards(run, [S.showcase.card]); }
+      if (!NOSINK) {
+        // leftover coins: polish the best card, then restock while a refill is still worth it
+        for (let k = 0; k < 4; k++) { const c = run.row.filter(c => c && c.star < 3).sort((a, b) => R.score(b) - R.score(a))[0]; if (!c || !R.buyPolish(run, S, c)) break; }
+        while (R.restockPrice(run, S) <= 30 && run.coins >= R.restockPrice(run, S) + 12) { R.restock(run, S); buyShelf(); }
       }
-      if (!S.showcase.sold && run.coins >= S.showcase.price) { run.coins -= S.showcase.price; placeCards(run, [S.showcase.card]); }
     } else if (nd.type === 'rest') {
       if (run.hp < run.maxHp * 0.65) run.hp = Math.min(run.maxHp, run.hp + R.restHeal(run));
       else { const c = run.row.filter(Boolean).sort((a, b) => R.score(b) - R.score(a)).find(c => c.star < 3); if (c) c.star++; }
@@ -123,12 +130,12 @@ for (let i = 0; i < N; i++) {
     }
     R.completeNode(run);
   }
-  res.floors += run.floor;
+  res.floors += run.floor; res.coinsLeft = (res.coinsLeft||0) + run.coins; res.coinsEarned = (res.coinsEarned||0) + run.stats.coinsEarned;
   if (process.env.SHOW && i < 6) console.log(run.over||'dead', 'act', run.act, 'floor', run.floor, 'coins', run.coins, run.row.map(c => c ? c.id + '★' + c.star + (c.ed !== 'normal' ? '(' + c.ed + ')' : '') : '-').join(' '));
   if (run.over === 'win') res.win++;
   for (const id of new Set(run.row.filter(Boolean).map(c => c.id))) { const pc = perCard[id] ||= { n: 0, w: 0, floor: 0 }; pc.n++; pc.floor += run.floor; if (run.over === 'win') pc.w++; }
 }
-console.log(`hero=${HERO} heat=${HEAT} runs=${N}  WIN ${(100 * res.win / N).toFixed(1)}%  avg floor ${(res.floors / N).toFixed(1)}`);
+console.log(`hero=${HERO} heat=${HEAT} runs=${N}  WIN ${(100 * res.win / N).toFixed(1)}%  avg floor ${(res.floors / N).toFixed(1)}  coins earned ${Math.round(res.coinsEarned / N)} left ${Math.round(res.coinsLeft / N)}`);
 console.log('reached act2:', (100 * (N - Object.entries(res.deaths).filter(([k]) => k[0] === '1').reduce((s, [, v]) => s + v, 0)) / N).toFixed(0) + '%',
   ' act3:', (100 * (N - Object.entries(res.deaths).filter(([k]) => k[0] !== '3').reduce((s, [, v]) => s + v, 0)) / N).toFixed(0) + '%');
 const pct = a => { const t = a[0] + a[1] + a[2] || 1; return `print ${Math.round(100 * a[0] / t)}% / alt ${Math.round(100 * a[1] / t)}% / full ${Math.round(100 * a[2] / t)}%`; };
